@@ -188,5 +188,5 @@ class Application(tk.Tk):
 
 
 
-APP = Application()
-APP.mainloop()
+app = Application()
+app.mainloop()
