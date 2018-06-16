@@ -9,23 +9,20 @@ class SP_Phrase:
         self.position = position
         self.length = length
 
-class Song:
-
+class Chart:
     NOTE_SCORE = 50
     MY_HEART_SCORE = 78762
     BROKED_SCORE = 61950
     KILLING_SCORE = 393643
 
-    def __init__(self, name, resolution=192):
-        self.name = name if name != "" else "Unknown"
+    def __init__(self, instrument, difficulty, resolution):
+        self.instrument = instrument
+        self.difficulty = difficulty
         self.sections = []
         self.notes = []
         self.sp_phrases = []
         self.resolution = resolution
         self.measure_length = resolution * 4
-
-    def add_section(self, section):
-        self.sections.append(section)
 
     def add_note(self, note):
         self.notes.append(note)
@@ -93,3 +90,20 @@ class Song:
             sum_multiplier += multiplier
 
         return sum_multiplier / song_length
+
+class Song:
+
+    DIFFICULTIES = ['ExpertSingle', 'HardSingle', 'MediumSingle', 'EasySingle',
+        'ExpertDoubleBass','HardDoubleBass', 'MediumDoubleBass', 'EasyDoubleBass']
+
+    def __init__(self, name, resolution=192):
+        self.name = name if name != "" else "Unknown"
+        self.resolution = resolution
+        self.sections = []
+        self.charts = []
+
+    def add_section(self, section):
+        self.sections.append(section)
+
+    def add_chart(self, chart):
+        self.charts.append(chart)

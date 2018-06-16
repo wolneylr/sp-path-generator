@@ -1,4 +1,4 @@
-from song import Song, SP_Phrase, Note
+from song import Song, SP_Phrase, Chart, Note
 import tkinter as tk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 
@@ -18,8 +18,6 @@ class Application(tk.Tk):
         if self.file_name:
             self.read_chart(self.file_name)
 
-
-
     def read_chart(self, file_name):
         self.file_chart = open(file_name, "r")
         self.str_chart = self.file_chart.read().splitlines()
@@ -28,7 +26,7 @@ class Application(tk.Tk):
         self.song_name = str([line for line in self.str_chart if "Name = " in line])
         self.song_name = self.song_name[len("['  Name = \"") : len(self.song_name) - 3]
 
-        self.song_resolution = str([line for line in self.str_chart if "Resolution = " in line])
+        self.song_resolution = str([line for line in self.str_chart if "Resolution" in line])
         self.song_resolution = self.song_resolution[len("['  Resolution = ") : \
             len(self.song_resolution) - 2]
 
@@ -40,27 +38,39 @@ class Application(tk.Tk):
             start_index = str_section.find("section ") + len("section ") 
             self.song.add_section(str_section[start_index : len(str_section) - 1])
 
-        self.str_notes = [line for line in self.str_chart if " = N " in line]
-
-        for str_note in self.str_notes:
-            note_list = str_note.split()
-            if int(note_list[3]) < 5 or int(note_list[3]) == 7:
-                note = Note(int(note_list[0]), int(note_list[3]), int(note_list[4]))
-                self.song.add_note(note)
-
-        self.str_sp_phrases = [line for line in self.str_chart if " = S 2 " in line]
-        for str_sp_phrase in self.str_sp_phrases:
-            sp_phrase_list = str_sp_phrase.split()
-            sp_phrase = SP_Phrase(int(sp_phrase_list[0]), int(sp_phrase_list[4]))
-            self.song.add_sp_phrase(sp_phrase)
-
         self.song_details_text = "Name: " + self.song.name + "\n"
         self.song_details_text += "Resolution: " + str(self.song.resolution) + "\n"
         self.song_details_text += "Total sections: " + str(len(self.song.sections)) + "\n"
-        self.song_details_text += "Total SP Phrases: " + str(len(self.song.sp_phrases)) + "\n"
-        self.song_details_text += "Total notes (unique): " + str(self.song.total_unique_notes()) + "\n"
-        self.song_details_text += "Total notes: " + str(len(self.song.notes)) + "\n"
-        self.song_details_text += "Base score: " + str(self.song.base_score(True)) + "\n"
+
+        for diff in self.song.DIFFICULTIES:
+            self.str_diff = str([line for line in self.str_chart if diff in line])
+            self.str_diff.split(' []')
+            if self.str_diff:
+
+                self.chart = Chart(self.str_diff, self.str_diff, self.song.resolution)
+
+                self.str_notes = [line for line in self.str_chart if " = N " in line]
+                for str_note in self.str_notes:
+                    note_list = str_note.split()
+                    if int(note_list[3]) < 5 or int(note_list[3]) == 7:
+                        note = Note(int(note_list[0]), int(note_list[3]), int(note_list[4]))
+                        self.chart.add_note(note)
+
+                self.str_sp_phrases = [line for line in self.str_chart if " = S 2 " in line]
+                for str_sp_phrase in self.str_sp_phrases:
+                    sp_phrase_list = str_sp_phrase.split()
+                    sp_phrase = SP_Phrase(int(sp_phrase_list[0]), int(sp_phrase_list[4]))
+                    self.chart.add_sp_phrase(sp_phrase)   
+
+                self.song.add_chart(self.chart)       
+           
+
+        for chart in self.song.charts:
+            self.song_details_text += "Instrument/Diff: " + chart.instrument + "\n"
+            self.song_details_text += "Total SP Phrases: " + str(len(chart.sp_phrases)) + "\n"
+            self.song_details_text += "Total notes (unique): " + str(chart.total_unique_notes()) + "\n"
+            self.song_details_text += "Total notes: " + str(len(chart.notes)) + "\n"
+            self.song_details_text += "Base score: " + str(chart.base_score(True)) + "\n"
 
         self.content = tk.Message(self, text=self.song_details_text, width=400)
         self.content.place(x=20, y=20)
