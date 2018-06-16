@@ -1,4 +1,4 @@
-import song
+from song import Song, SP_Phrase, Note
 import tkinter as tk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 
