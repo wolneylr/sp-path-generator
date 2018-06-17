@@ -1,0 +1,52 @@
+[Song]
+{
+  Name = "oi"
+  Offset = 0
+  Resolution = 192
+  Player2 = bass
+  Difficulty = 0
+  PreviewStart = 0
+  PreviewEnd = 0
+  Genre = "rock"
+  MediaType = "cd"
+}
+[SyncTrack]
+{
+  0 = TS 4
+  0 = B 120000
+}
+[Events]
+{
+}
+[ExpertSingle]
+{
+  0 = N 0 0
+}
+[ExpertDoubleGuitar]
+{
+  0 = N 0 0
+}
+[ExpertDoubleBass]
+{
+  0 = N 0 0
+}
+[ExpertDoubleRhythm]
+{
+  0 = N 0 0
+}
+[ExpertKeyboard]
+{
+  0 = N 0 0
+}
+[ExpertDrums]
+{
+  0 = N 1 0
+}
+[ExpertGHLGuitar]
+{
+  0 = N 3 0
+}
+[ExpertGHLBass]
+{
+  0 = N 3 0
+}

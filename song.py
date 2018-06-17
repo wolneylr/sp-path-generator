@@ -1,3 +1,5 @@
+import math
+
 class Note:
     def __init__(self, position, number, length):
         self.position = position
@@ -12,11 +14,11 @@ class SP_Phrase:
 class Chart:
     NOTE_SCORE = 50
     MY_HEART_SCORE = 78762
-    BROKED_SCORE = 61950
+    BROKED_SCORE = 55834
     KILLING_SCORE = 393643
+    MEUERRO_SCORE = 159402
 
-    def __init__(self, instrument, difficulty, resolution):
-        self.instrument = instrument
+    def __init__(self, difficulty, resolution):
         self.difficulty = difficulty
         self.sections = []
         self.notes = []
@@ -36,7 +38,7 @@ class Chart:
         for i in range(0, len(self.notes)):
             if i == 0:
                 notes_count += 1
-            elif self.notes[i].position != self.notes[i - 1].position:
+            elif self.notes[i].position > self.notes[i - 1].position:
                 notes_count += 1
 
         return notes_count
@@ -51,7 +53,7 @@ class Chart:
 
             if i == 0:
                 unique_note = True
-            elif self.notes[i].position != self.notes[i - 1].position:
+            elif self.notes[i].position > self.notes[i - 1].position:
                 unique_note = True
 
             if unique_note is True:
@@ -59,7 +61,7 @@ class Chart:
                 if unique_note_index > 30:
                     multiplier = 4
                 else:
-                    multiplier = unique_note_index % 10 + 1
+                    multiplier = math.floor(unique_note_index / 10) + 1
 
             score += self.NOTE_SCORE * multiplier
 
