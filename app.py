@@ -1,31 +1,44 @@
-from song import Song, SP_Phrase, Chart, Note
+from song import Song, Chart
 import tkinter as tk
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 from decimal import Decimal
+import cairocffi as cairo
 
 class Application(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
         self.geometry("600x450")
         self.grid_columnconfigure((0,1), weight=1)
-        #self.frame = tk.Frame(self, width=1280, height=720)
-        #self.frame.pack()
-        #self.main_pane = tk.PanedWindow(self)
-        #self.main_pane.pack(fill=tk.BOTH, expand=1)
         self.title("SPPathCreator")
-        #self.iconbitmap("gh1.ico")
         self.create_widgets()
+
+    def create_chart_image(self):
+        ims = cairo.ImageSurface(cairo.FORMAT_ARGB32, 595, 842)
+        cr = cairo.Context(ims)
+
+        cr.set_source_rgb(1, 1, 1)
+        cr.rectangle(0, 0, 595, 842)
+        cr.fill()
+
+        cr.set_source_rgb(0, 0, 0)
+        cr.select_font_face("Arial", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+        cr.set_font_size(24)
+
+        cr.move_to(10, 50)
+        cr.show_text(self.song.name)
+
+        ims.write_to_png("chart.png")
 
     def show_chart_info(self, event=None):
         chart_diffs = [chart.difficulty for chart in self.song.charts]
-        i = chart_diffs.index(self.chart_box.get())
-        chart = self.song.charts[i]
+        chart = self.song.charts[chart_diffs.index(self.chart_box.get())]
 
         self.spphrases_strvar.set(str(len(chart.sp_phrases)))
         self.uniquenotes_strvar.set(str(chart.total_unique_notes()))
         self.notes_strvar.set(len(chart.notes))
-        self.basescore_strvar.set(round(chart.base_score(True), 3))
+        self.basescore_strvar.set(round(chart.base_score(True, False), 3))
+        self.baseavgmult_strvar.set(round(chart.avg_multiplier(), 3))
 
     def on_open(self):
         self.file_name = askopenfilename(filetypes=(('Chart files', '*.chart'), \
@@ -35,57 +48,86 @@ class Application(tk.Tk):
             self.read_chart(self.file_name)
 
     def read_chart(self, file_name):
-        self.file_chart = open(file_name, "r")
-        self.str_file = self.file_chart.read().splitlines()
-        self.file_chart.close()
+        file_chart = open(file_name, "r")
+        str_file = file_chart.read().splitlines()
+        file_chart.close()
 
-        self.song_parts = [line for line in self.str_file if '[' in line]
+        song_parts = [line for line in str_file if '[' in line]
 
-        for i in range(0, len(self.song_parts)):          
-            start_index = self.str_file.index(self.song_parts[i])
+        for i in range(0, len(song_parts)):          
+            start_index = str_file.index(song_parts[i]) + 2
 
-            if i > len(self.song_parts) - 2:
-                end_index = len(self.str_file)       
+            if i > len(song_parts) - 2:
+                end_index = len(str_file) - 1       
             else:
-                end_index = self.str_file.index(self.song_parts[i + 1])
+                end_index = str_file.index(song_parts[i + 1]) - 1
 
-            str_content = self.str_file[start_index + 2 : end_index - 1]        
+            str_content = str_file[start_index : end_index]                        
                 
-            str_part = self.song_parts[i].strip('[]')
+            str_part = song_parts[i].strip('[]')
 
             if str_part == "Song":
-                self.song_name = str([line for line in str_content if "Name = " in line])
-                self.song_name = self.song_name[len("['  Name = \"") : len(self.song_name) - 3]
+                song_name = str([line for line in str_content if "Name = " in line])
+                song_name = song_name[len("['  Name = \"") : len(song_name) - 3]
 
-                self.song_resolution = str([line for line in self.str_file if "Resolution = " in line])
-                self.song_resolution = self.song_resolution[len("['  Resolution = ") : \
-                    len(self.song_resolution) - 2]
-                self.song = Song(self.song_name, int(self.song_resolution))
+                song_resolution = str([line for line in str_content if "Resolution = " in line])
+                song_resolution = song_resolution[len("['  Resolution = ") : \
+                    len(song_resolution) - 2]
+                self.song = Song(song_name, int(song_resolution))
+
+            elif str_part == "SyncTrack":
+                str_time_signatures = [line for line in str_content if " = TS " in line]
+
+                for str_time_signature in str_time_signatures:
+                    time_signature_list = str_time_signature.split()
+                    time_signature =	{
+                            "position": int(time_signature_list[0]),
+                            "beats": int(time_signature_list[3])
+                    }
+                    self.song.add_time_signature(time_signature)   
+
+                str_bpms = [line for line in str_content if " = B " in line]
+
+                for str_bpm in str_bpms:
+                    bpm_list = str_bpm.split()
+                    bpm =	{
+                            "position": int(bpm_list[0]),
+                            "value": int(bpm_list[3])
+                    }
+                    self.song.add_bpm(bpm)   
 
             elif str_part == "Events":
-                self.sections = [line for line in self.str_file if " = E " in line]
+                sections = [line for line in str_content if " = E " in line]
 
-                for str_section in self.sections:
+                for str_section in sections:
                     start_index = str_section.find("section ") + len("section ") 
                     self.song.add_section(str_section[start_index : len(str_section) - 1])
 
             elif str_part in self.song.DIFFICULTIES:
-                self.chart = Chart(str_part, self.song.resolution)
-
-                self.str_notes = [line for line in str_content if " = N " in line]
-                for str_note in self.str_notes:
+                chart = Chart(str_part, self.song.resolution)
+                str_notes = [line for line in str_content if " = N " in line]
+                for str_note in str_notes:
                     note_list = str_note.split()
                     if int(note_list[3]) < 5 or int(note_list[3]) == 7:
-                        note = Note(int(note_list[0]), int(note_list[3]), int(note_list[4]))
-                        self.chart.add_note(note)
+                        note =	{
+                            "position": int(note_list[0]),
+                            "number": int(note_list[3]),
+                            "length": int(note_list[4])
+                        }
+                        chart.add_note(note)
 
-                self.str_sp_phrases = [line for line in str_content if " = S 2 " in line]
-                for str_sp_phrase in self.str_sp_phrases:
+                str_sp_phrases = [line for line in str_content if " = S 2 " in line]
+                for str_sp_phrase in str_sp_phrases:
                     sp_phrase_list = str_sp_phrase.split()
-                    sp_phrase = SP_Phrase(int(sp_phrase_list[0]), int(sp_phrase_list[4]))
-                    self.chart.add_sp_phrase(sp_phrase)   
+                    sp_phrase =	{
+                            "position": int(sp_phrase_list[0]),
+                            "length": int(sp_phrase_list[4])
+                    }
+                    chart.add_sp_phrase(sp_phrase)   
 
-                self.song.add_chart(self.chart)       
+                self.song.add_chart(chart)      
+
+                self.create_chart_image() 
 
         self.name_strvar.set(self.song.name)
         self.res_strvar.set(str(self.song.resolution))
@@ -105,7 +147,7 @@ class Application(tk.Tk):
             filetypes = (("Text files","*.txt"),("All files","*.*")))
         if file_name is None:
             return
-        #file_name.write(self.song_details)
+        #file_name.write(song_details)
         file_name.close()
 
     def export_sections(self):
@@ -169,11 +211,13 @@ class Application(tk.Tk):
         self.basescore_text.set("Base Score: ")
         self.basescore_label = tk.Label(self, textvariable=self.basescore_text, height=2)
 
+        self.baseavgmult_text = tk.StringVar()
+        self.baseavgmult_text.set("Base Avg. Multiplier: ")
+        self.baseavgmult_label = tk.Label(self, textvariable=self.baseavgmult_text, height=2)
+
         self.chart_text = tk.StringVar()
         self.chart_text.set("Chart: ")
         self.chart_label = tk.Label(self, textvariable=self.chart_text, height=2)
-
-        
 
         self.name_strvar = tk.StringVar()
         self.name_entry = tk.Entry(self, textvariable=self.name_strvar,width=30,state="readonly")      
@@ -201,6 +245,10 @@ class Application(tk.Tk):
         self.basescore_entry = tk.Entry(self, textvariable=self.basescore_strvar,width=15,
             state="readonly")
 
+        self.baseavgmult_strvar = tk.StringVar()
+        self.baseavgmult_entry = tk.Entry(self, textvariable=self.baseavgmult_strvar,width=15,
+            state="readonly")
+
         self.chart_box = tk.ttk.Combobox(self)
         
         self.name_label.grid(row=0, column=0)
@@ -210,17 +258,19 @@ class Application(tk.Tk):
         self.totsections_label.grid(row=2, column=0)
         self.totsections_entry.grid(row=2, column=1)
 
-        self.chart_label.grid(row=0, column=2)
-        self.chart_box.grid(row=0, column=3)
+        self.chart_label.grid(row=3, column=0)
+        self.chart_box.grid(row=3, column=1)
 
-        self.spphrases_label.grid(row=1, column=2)
-        self.spphrases_entry.grid(row=1, column=3) 
-        self.uniquenotes_label.grid(row=2, column=2)
-        self.uniquenotes_entry.grid(row=2, column=3)
-        self.notes_label.grid(row=3, column=2)
-        self.notes_entry.grid(row=3, column=3)
-        self.basescore_label.grid(row=4, column=2)
-        self.basescore_entry.grid(row=4, column=3)
+        self.spphrases_label.grid(row=4, column=0)
+        self.spphrases_entry.grid(row=4, column=1) 
+        self.uniquenotes_label.grid(row=5, column=0)
+        self.uniquenotes_entry.grid(row=5, column=1)
+        self.notes_label.grid(row=6, column=0)
+        self.notes_entry.grid(row=6, column=1)
+        self.basescore_label.grid(row=7, column=0)
+        self.basescore_entry.grid(row=7, column=1)
+        self.baseavgmult_label.grid(row=8, column=0)
+        self.baseavgmult_entry.grid(row=8, column=1)
 
 app = Application()
 app.mainloop()
