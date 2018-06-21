@@ -1,9 +1,11 @@
 from song import Song, Chart
+#from chart_img import Chart_Img
+
 import tkinter as tk
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfile
+
 from decimal import Decimal
-import cairocffi as cairo
 
 class Application(tk.Tk):
     def __init__(self):
@@ -14,25 +16,13 @@ class Application(tk.Tk):
         self.create_widgets()
 
     def create_chart_image(self):
-        ims = cairo.ImageSurface(cairo.FORMAT_ARGB32, 595, 842)
-        cr = cairo.Context(ims)
+        chart = self.song.charts[self.chart_diffs.index(self.chart_box.get())]
 
-        cr.set_source_rgb(1, 1, 1)
-        cr.rectangle(0, 0, 595, 842)
-        cr.fill()
+        #chart_img = Chart_Img(self.song.name, chart)
+        #chart_img.draw_measures()
 
-        cr.set_source_rgb(0, 0, 0)
-        cr.select_font_face("Arial", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-        cr.set_font_size(24)
-
-        cr.move_to(10, 50)
-        cr.show_text(self.song.name)
-
-        ims.write_to_png("chart.png")
-
-    def show_chart_info(self, event=None):
-        chart_diffs = [chart.difficulty for chart in self.song.charts]
-        chart = self.song.charts[chart_diffs.index(self.chart_box.get())]
+    def show_chart_info(self, event=None):  
+        chart = self.song.charts[self.chart_diffs.index(self.chart_box.get())]
 
         self.spphrases_strvar.set(str(len(chart.sp_phrases)))
         self.uniquenotes_strvar.set(str(chart.total_unique_notes()))
@@ -45,6 +35,7 @@ class Application(tk.Tk):
             ("All files", "*.*")))
 
         if self.file_name:
+            print(self.file_name)
             self.read_chart(self.file_name)
 
     def read_chart(self, file_name):
@@ -54,7 +45,7 @@ class Application(tk.Tk):
 
         song_parts = [line for line in str_file if '[' in line]
 
-        for i in range(0, len(song_parts)):          
+        for i in range(len(song_parts)):          
             start_index = str_file.index(song_parts[i]) + 2
 
             if i > len(song_parts) - 2:
@@ -125,10 +116,10 @@ class Application(tk.Tk):
                     }
                     chart.add_sp_phrase(sp_phrase)   
 
+                
                 self.song.add_chart(chart)      
 
-                self.create_chart_image() 
-
+                
         self.name_strvar.set(self.song.name)
         self.res_strvar.set(str(self.song.resolution))
         self.totsections_strvar.set(str(len(self.song.sections)))
@@ -136,8 +127,11 @@ class Application(tk.Tk):
         self.chart_box["values"] = [chart.difficulty for chart in self.song.charts]
         self.chart_box.current(0)
 
+        self.chart_diffs = [chart.difficulty for chart in self.song.charts]
+        self.create_chart_image() 
+
         self.show_chart_info()
-        self.chart_box.bind("<<ComboboxSelected>>", self.show_chart_info)
+        self.chart_box.bind("<<ComboboxSelected>>", self.show_chart_info)    
 
         self.file_menu.entryconfig(1, state="normal")
         self.export_menu.entryconfig(0, state="normal")
@@ -272,5 +266,10 @@ class Application(tk.Tk):
         self.baseavgmult_label.grid(row=8, column=0)
         self.baseavgmult_entry.grid(row=8, column=1)
 
-app = Application()
-app.mainloop()
+def main():
+    app = Application()
+    app.mainloop()
+
+if __name__ == "__main__":
+    main()
+

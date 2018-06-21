@@ -27,7 +27,7 @@ class Chart:
     def total_unique_notes(self):
         notes_count = 0
 
-        for i in range(0, len(self.notes)):
+        for i in range(len(self.notes)):
             if i == 0:
                 notes_count += 1
             elif self.notes[i]["position"] > self.notes[i - 1]["position"]:
@@ -40,7 +40,7 @@ class Chart:
         multiplier = 1
         unique_note_index = 0
 
-        for i in range(0, len(self.notes)):
+        for i in range(len(self.notes)):
             unique_note = False
 
             if i == 0:
@@ -69,7 +69,7 @@ class Chart:
         return score
 
     '''
-        Since the song's length is based on the song file, the average multiplier is based on 
+        Since the song's length is based on the song file, the average multiplier is calculated using 
         the chart's length, not the song.
     '''
     def avg_multiplier(self):
@@ -82,7 +82,7 @@ class Chart:
 
         multinc_pos = []
 
-        for i in range(0, len(self.notes)):
+        for i in range(len(self.notes)):
             unique_note = False
 
             if i == 0:
@@ -116,11 +116,13 @@ class Chart:
 
 class Song:
 
-    DIFFICULTIES = ['ExpertSingle', 'HardSingle', 'MediumSingle', 'EasySingle',
+    DIFFICULTIES = [
+        'ExpertSingle', 'HardSingle', 'MediumSingle', 'EasySingle',
         'ExpertDoubleBass','HardDoubleBass', 'MediumDoubleBass', 'EasyDoubleBass'
         'ExpertDoubleRhythm','HardDoubleRhythm', 'MediumDoubleRhythm', 'EasyDoubleRhythm'
         'ExpertKeyboard','HardKeyboard', 'MediumKeyboard', 'EasyKeyboard'
-        'ExpertDrums','HardDrums', 'MediumDrums', 'EasyDrums']
+        'ExpertDrums','HardDrums', 'MediumDrums', 'EasyDrums'
+        ]
 
     def __init__(self, name, resolution=192):
         self.name = name if name else "Unknown"
