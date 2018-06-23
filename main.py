@@ -15,11 +15,10 @@ class Application(tk.Tk):
         self.title("SPPathCreator")
         self.create_widgets()
 
-    def create_chart_image(self):
-        chart = self.song.charts[self.chart_diffs.index(self.chart_box.get())]
+    #def create_chart_image(self):
+        #chart = self.song.charts[self.chart_diffs.index(self.chart_box.get())]
 
         #chart_img = Chart_Img(self.song.name, chart)
-        #chart_img.draw_measures()
 
     def show_chart_info(self, event=None):  
         chart = self.song.charts[self.chart_diffs.index(self.chart_box.get())]
@@ -27,7 +26,7 @@ class Application(tk.Tk):
         self.spphrases_strvar.set(str(len(chart.sp_phrases)))
         self.uniquenotes_strvar.set(str(chart.total_unique_notes()))
         self.notes_strvar.set(len(chart.notes))
-        self.basescore_strvar.set(round(chart.base_score(True, False), 3))
+        self.basescore_strvar.set(round(chart.base_score(True), 3))
         self.baseavgmult_strvar.set(round(chart.avg_multiplier(), 3))
 
     def on_open(self):
@@ -61,10 +60,13 @@ class Application(tk.Tk):
                 song_name = str([line for line in str_content if "Name = " in line])
                 song_name = song_name[len("['  Name = \"") : len(song_name) - 3]
 
+                song_charter = str([line for line in str_content if "Charter = " in line])
+                song_charter = song_charter[len("['  Charter = \"") : len(song_charter) - 3]
+
                 song_resolution = str([line for line in str_content if "Resolution = " in line])
                 song_resolution = song_resolution[len("['  Resolution = ") : \
                     len(song_resolution) - 2]
-                self.song = Song(song_name, int(song_resolution))
+                self.song = Song(song_name, song_charter, int(song_resolution))
 
             elif str_part == "SyncTrack":
                 str_time_signatures = [line for line in str_content if " = TS " in line]
@@ -111,8 +113,8 @@ class Application(tk.Tk):
                 for str_sp_phrase in str_sp_phrases:
                     sp_phrase_list = str_sp_phrase.split()
                     sp_phrase =	{
-                            "position": int(sp_phrase_list[0]),
-                            "length": int(sp_phrase_list[4])
+                        "position": int(sp_phrase_list[0]),
+                        "length": int(sp_phrase_list[4])
                     }
                     chart.add_sp_phrase(sp_phrase)   
 
@@ -128,7 +130,7 @@ class Application(tk.Tk):
         self.chart_box.current(0)
 
         self.chart_diffs = [chart.difficulty for chart in self.song.charts]
-        self.create_chart_image() 
+        #self.create_chart_image() 
 
         self.show_chart_info()
         self.chart_box.bind("<<ComboboxSelected>>", self.show_chart_info)    

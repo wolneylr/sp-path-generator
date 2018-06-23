@@ -35,7 +35,7 @@ class Chart:
 
         return notes_count
 
-    def base_score(self, note_length, print_score):
+    def base_score(self, include_note_lengths):
         score = 0
         multiplier = 1
         unique_note_index = 0
@@ -48,7 +48,7 @@ class Chart:
             elif self.notes[i]["position"] > self.notes[i - 1]["position"]:
                 unique_note = True
 
-            if unique_note is True:
+            if unique_note:
                 unique_note_index += 1
                 if unique_note_index > 30:
                     multiplier = 4
@@ -57,14 +57,14 @@ class Chart:
 
             score += self.NOTE_SCORE * multiplier
 
-            if note_length is True and self.notes[i]["length"] > 0 and unique_note is True:
+            if include_note_lengths and self.notes[i]["length"] > 0 and unique_note:
                 score += self.NOTE_SCORE * 2 * multiplier * self.notes[i]["length"] / self.measure_length
-
-            if print_score:
-                    if i == 0:
-                        print(str(unique_note_index) + " - " + str(score))
-                    elif self.notes[i]["position"] > self.notes[i - 1]["position"]:
-                        print(str(unique_note_index) + " - " + str(score))               
+            '''
+            if i == 0:
+                print(str(unique_note_index) + " - " + str(score))
+            elif self.notes[i]["position"] > self.notes[i - 1]["position"]:
+                print(str(unique_note_index) + " - " + str(score))  
+            '''             
 
         return score
 
@@ -73,11 +73,16 @@ class Chart:
         the chart's length, not the song.
     '''
     def avg_multiplier(self):
+
+        multiplier = 1
+
         song_length = self.notes[len(self.notes) - 1]["position"] \
             + self.notes[len(self.notes) - 1]["length"]
 
-        sum_multiplier = 0
-        multiplier = 1
+        if song_length == 0:
+            return multiplier
+
+        sum_multiplier = 0       
         unique_note_index = 0
 
         multinc_pos = []
@@ -124,9 +129,10 @@ class Song:
         'ExpertDrums','HardDrums', 'MediumDrums', 'EasyDrums'
         ]
 
-    def __init__(self, name, resolution=192):
+    def __init__(self, name, charter, resolution=192):
         self.name = name if name else "Unknown"
-        self.resolution = resolution
+        self.charter = charter if charter else "Unknown"
+        self.resolution = resolution 
         self.bpms = []
         self.time_signatures = []
         self.sections = []
