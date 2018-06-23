@@ -4,11 +4,13 @@ from main import Application
 
 class Chart_Img():
 
+    MAX_HEIGHT = 25000
     WIDTH = 1024
     MEASURE_OFFSET = 40
     LINE_OFFSET = 125
-
     EPSILON = 0.001
+    NOTE_RADIUS = 3
+    STAR_SCALE = 30
 
     STAR_POINTS = ( 
         ( 0, 85 ), 
@@ -24,13 +26,14 @@ class Chart_Img():
         ( 0, 85 )
     )
 
-    NOTE_COLORS = [
-        [0, 1, 0], 
+    COLORS = [
+        [0, 0.9, 0], 
         [1, 0, 0], 
         [1, 1, 0],
         [0, 0.3, 1],
         [1, 0.7, 0],
-        [1, 0, 1]
+        [1, 0, 1],
+        [0, 0.7, 0]
     ]
 
     def __init__(self, song, chart):
@@ -43,6 +46,9 @@ class Chart_Img():
         self.m2l = self.line_length / (self.song.resolution * 24)
 
         height = self.calculate_height()
+
+        if height > self.MAX_HEIGHT:
+            height = self.MAX_HEIGHT
 
         self.ims = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.WIDTH, height)
         self.cr = cairo.Context(self.ims)
@@ -70,11 +76,11 @@ class Chart_Img():
         self.c_y += 20
 
         self.cr.set_font_size(12) 
-        (_, _, width, _, _, _) = self.cr.text_extents(chart.difficulty)
+        (_, _, width, _, _, _) = self.cr.text_extents(song.DIFFICULTIES[chart.difficulty])
         self.cr.move_to(self.WIDTH / 2 - width / 2, self.c_y)   
-        self.cr.show_text(chart.difficulty)
+        self.cr.show_text(song.DIFFICULTIES[chart.difficulty])
 
-        est_score = "Est. Score: " + str(math.floor(self.chart.base_score(True)))
+        est_score = "Est. Score: " + str(math.floor(self.chart.base_score(song.time_signatures, True)))
         (_, _, width, _, _, _) = self.cr.text_extents(est_score)
         self.cr.move_to(self.WIDTH - width - self.MEASURE_OFFSET / 4, self.c_y)   
         self.cr.show_text(est_score)
@@ -125,26 +131,57 @@ class Chart_Img():
         self.cr.set_source_rgb(0.7, 0.7, 0.7)
 
         if star:
-            for i in range(10):
-                self.cr.line_to(self.STAR_POINTS[i][0] / 25 + x, self.STAR_POINTS[i][1] / 25 + y)
-        else:
-            if color == 5:          
-                self.cr.arc(x, y - 2 * self.notes_offset, 2, 0, 2 * math.pi)
-                self.cr.stroke_preserve()
-                self.cr.set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], self.NOTE_COLORS[color][2])
+            if color == 5:
+                for i in range(10):
+                    self.cr.line_to(self.STAR_POINTS[i][0] / (self.STAR_SCALE + 5) + x - self.NOTE_RADIUS, 
+                    self.STAR_POINTS[i][1] / (self.STAR_SCALE + 5) + y - self.NOTE_RADIUS - 2 * self.notes_offset)   
+                self.cr.stroke_preserve()    
+                self.cr.set_source_rgb(self.COLORS[color][0], self.COLORS[color][1], 
+                self.COLORS[color][2])
                 self.cr.fill()
 
                 self.cr.set_source_rgb(0.7, 0.7, 0.7)
-                self.cr.arc(x, y + 2 * self.notes_offset, 2, 0, 2 * math.pi)
+                for i in range(10):
+                    self.cr.line_to(self.STAR_POINTS[i][0] / (self.STAR_SCALE + 5) + x - self.NOTE_RADIUS, 
+                    self.STAR_POINTS[i][1] / (self.STAR_SCALE + 5) + y - self.NOTE_RADIUS + 2 * self.notes_offset)  
+                self.cr.stroke_preserve()      
+                self.cr.set_source_rgb(self.COLORS[color][0], self.COLORS[color][1], 
+                self.COLORS[color][2])
+                self.cr.fill()
+
+                self.cr.rectangle(x - (self.NOTE_RADIUS - self.NOTE_RADIUS / 3), 
+                y - 2 * self.notes_offset, self.NOTE_RADIUS + self.NOTE_RADIUS / 3, 4 * self.notes_offset)
+            else:
+                for i in range(10):
+                    self.cr.line_to(self.STAR_POINTS[i][0] / self.STAR_SCALE + x - self.NOTE_RADIUS, 
+                    self.STAR_POINTS[i][1] / self.STAR_SCALE + y - self.NOTE_RADIUS)   
+                self.cr.stroke_preserve()      
+                self.cr.set_source_rgb(self.COLORS[color][0], self.COLORS[color][1], 
+                self.COLORS[color][2])
+        else:
+            if color == 5:          
+                self.cr.arc(x, y - 2 * self.notes_offset, 
+                self.NOTE_RADIUS - self.NOTE_RADIUS / 3, 0, 2 * math.pi)
                 self.cr.stroke_preserve()
-                self.cr.set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], self.NOTE_COLORS[color][2])
+                self.cr.set_source_rgb(self.COLORS[color][0], self.COLORS[color][1],
+                 self.COLORS[color][2])
+                self.cr.fill()
+
+                self.cr.set_source_rgb(0.7, 0.7, 0.7)
+                self.cr.arc(x, y + 2 * self.notes_offset, 
+                self.NOTE_RADIUS - self.NOTE_RADIUS / 3, 0, 2 * math.pi)
+                self.cr.stroke_preserve()
+                self.cr.set_source_rgb(self.COLORS[color][0], self.COLORS[color][1], 
+                self.COLORS[color][2])
                 self.cr.fill()
                 
-                self.cr.rectangle(x - 2, y - 2 * self.notes_offset, 4, 4 * self.notes_offset)
+                self.cr.rectangle(x - (self.NOTE_RADIUS - self.NOTE_RADIUS / 3), 
+                y - 2 * self.notes_offset, self.NOTE_RADIUS + self.NOTE_RADIUS / 3, 4 * self.notes_offset)
             else:
-                self.cr.arc(x, y, 3, 0, 2 * math.pi)
+                self.cr.arc(x, y, self.NOTE_RADIUS, 0, 2 * math.pi)
                 self.cr.stroke_preserve()      
-                self.cr.set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], self.NOTE_COLORS[color][2])
+                self.cr.set_source_rgb(self.COLORS[color][0], self.COLORS[color][1], 
+                self.COLORS[color][2])
 
         self.cr.fill()
 
@@ -250,14 +287,26 @@ class Chart_Img():
 
             self.c_y -= self.notes_offset * 5
 
-            
+            # Draws remaining star power phrase length from last measure
+            if sp_phrase_length > 0:
+                self.cr.set_source_rgba(self.COLORS[6][0], self.COLORS[6][1], self.COLORS[6][2], 0.5)
+
+                if sp_phrase_length > measure_length * self.m2l:
+                    self.cr.rectangle(self.c_x, self.c_y, measure_length * self.m2l, 4 * self.notes_offset)
+                    sp_phrase_length -= measure_length * self.m2l               
+                else:
+                    self.cr.rectangle(self.c_x, self.c_y, sp_phrase_length, 4 * self.notes_offset) 
+                    sp_phrase_length = 0
+
+                self.cr.fill()      
+                self.cr.set_source_rgba(self.COLORS[6][0], self.COLORS[6][1], self.COLORS[6][2], 1)   
 
             
             # Draws remaining note length from last measure
             for i in range(len(note_lengths)):
                 if note_lengths[i] > 0:
 
-                    self.cr.set_source_rgb(self.NOTE_COLORS[i][0], self.NOTE_COLORS[i][1], self.NOTE_COLORS[i][2])
+                    self.cr.set_source_rgb(self.COLORS[i][0], self.COLORS[i][1], self.COLORS[i][2])
                     self.cr.move_to(self.c_x, self.c_y + i * self.notes_offset)
 
                     if note_lengths[i] > measure_length * self.m2l:
@@ -282,55 +331,79 @@ class Chart_Img():
                             self.cr.stroke()
                         note_lengths[i] = 0
 
-                    
+            # Draws star power phrases in measure 
+            if s < len(sp_phrases):
+                while sp_phrases[s]["position"] < c_length + measure_length:  
+                    sp_phrase_line_pos = sp_phrases[s]["position"] * self.m2l - sum(self.line_lengths)
 
-            # Draws notes in measure
-            while notes[n]["position"] < c_length + measure_length:               
-                note_line_pos = notes[n]["position"] * self.m2l - sum(self.line_lengths)
+                    x = self.MEASURE_OFFSET + sp_phrase_line_pos
 
-                x = self.MEASURE_OFFSET + note_line_pos
-                y = self.c_y + (2 if notes[n]["number"] == 7 else notes[n]["number"]) * self.notes_offset 
+                    self.cr.move_to(x, self.c_y)
 
-                self.draw_note(x, y, notes[n]["number"], False)
-
-                if notes[n]["length"] > 0:                    
-                    self.cr.move_to(x, y)
-
-                    length_pos = x + notes[n]["length"] * self.m2l
+                    length_pos = x + sp_phrases[s]["length"] * self.m2l
 
                     measure_pos = self.MEASURE_OFFSET + (c_length + measure_length) * self.m2l - sum(self.line_lengths)
-                    
-                    if length_pos > measure_pos:
-                        if notes[n]["number"] == 7:
-                            self.cr.set_source_rgba(1, 0, 1, 0.5)
-                            self.cr.rectangle(x, self.c_y, measure_pos - x, 4 * self.notes_offset) 
-                            self.cr.fill()      
-                            self.cr.set_source_rgba(1, 0, 1, 1)     
-                        else:
-                            self.cr.line_to(measure_pos, y) 
-                            self.cr.stroke()
+                        
+                    self.cr.set_source_rgba(self.COLORS[6][0], self.COLORS[6][1], self.COLORS[6][2], 0.5)
 
-                        note_lengths[5 if notes[n]["number"] == 7 else notes[n]["number"]] = length_pos - measure_pos
+                    if length_pos > measure_pos:             
+                        self.cr.rectangle(x, self.c_y, measure_pos - x, 4 * self.notes_offset) 
+                        sp_phrase_length = length_pos - measure_pos
                     else:
-                        if notes[n]["number"] == 7:
-                            self.cr.set_source_rgba(1, 0, 1, 0.5)
-                            self.cr.rectangle(x, self.c_y, length_pos - x, 4 * self.notes_offset) 
-                            self.cr.fill()
-                            self.cr.set_source_rgba(1, 0, 1, 1)   
+                        self.cr.rectangle(x, self.c_y, length_pos - x, 4 * self.notes_offset) 
+
+                    self.cr.fill()      
+                    self.cr.set_source_rgba(self.COLORS[6][0], self.COLORS[6][1], self.COLORS[6][2], 1)   
+
+
+                    s += 1
+
+                    if s == len(sp_phrases):
+                        break 
+
+                 
+            # Draws notes in measure     
+            if n < len(notes): 
+                while notes[n]["position"] < c_length + measure_length:               
+                    note_line_pos = notes[n]["position"] * self.m2l - sum(self.line_lengths)
+
+                    x = self.MEASURE_OFFSET + note_line_pos
+                    y = self.c_y + (2 if notes[n]["number"] == 7 else notes[n]["number"]) * self.notes_offset 
+
+                    self.draw_note(x, y, notes[n]["number"], self.chart.pos_in_phrase(notes[n]["position"]))
+
+                    if notes[n]["length"] > 0:                    
+                        self.cr.move_to(x, y)
+
+                        length_pos = x + notes[n]["length"] * self.m2l
+
+                        measure_pos = self.MEASURE_OFFSET + (c_length + measure_length) * self.m2l - sum(self.line_lengths)
+                        
+                        if length_pos > measure_pos:
+                            if notes[n]["number"] == 7:
+                                self.cr.set_source_rgba(1, 0, 1, 0.5)
+                                self.cr.rectangle(x, self.c_y, measure_pos - x, 4 * self.notes_offset) 
+                                self.cr.fill()      
+                                self.cr.set_source_rgba(1, 0, 1, 1)     
+                            else:
+                                self.cr.line_to(measure_pos, y) 
+                                self.cr.stroke()
+
+                            note_lengths[5 if notes[n]["number"] == 7 else notes[n]["number"]] = length_pos - measure_pos
                         else:
-                            self.cr.line_to(length_pos, y)   
-                            self.cr.stroke()    
+                            if notes[n]["number"] == 7:
+                                self.cr.set_source_rgba(1, 0, 1, 0.5)
+                                self.cr.rectangle(x, self.c_y, length_pos - x, 4 * self.notes_offset) 
+                                self.cr.fill()
+                                self.cr.set_source_rgba(1, 0, 1, 1)   
+                            else:
+                                self.cr.line_to(length_pos, y)   
+                                self.cr.stroke()    
 
-                n += 1
+                    n += 1
 
-                if n == len(notes):
-                    break            
-
-            if sp_phrase_length > 0:
-                if sp_phrase_length > measure_length * self.m2l:
-                    sp_phrase_length -= measure_length * self.m2l               
-                else:
-                    sp_phrase_length = 0
+                    if n == len(notes):
+                        break            
 
             self.c_x += measure_length * self.m2l
             c_length += measure_length
@@ -340,7 +413,7 @@ class Chart_Img():
 
 def main():
     app = Application()
-    app.read_chart("Chart Examples/sanctuary.chart")
+    app.read_chart("Chart Examples/brokedit.chart")
 
     Chart_Img(app.song, app.song.charts[0])
 

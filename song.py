@@ -15,14 +15,24 @@ class Chart:
         self.notes = []
         self.sp_phrases = []
         self.resolution = resolution
-        self.measure_length = resolution * 4
+    
+    def pos_in_phrase(self, position):
+        s = 0
+
+        while s < len(self.sp_phrases):
+            if self.sp_phrases[s]["position"] + self.sp_phrases[s]["length"] - 1 < position:  
+                s += 1
+            else:
+                return self.sp_phrases[s]["position"] <= position
+
+            
+        return False   
 
     def add_note(self, note):
         self.notes.append(note)
 
     def add_sp_phrase(self, sp_phrase):
         self.sp_phrases.append(sp_phrase)
-
 
     def total_unique_notes(self):
         notes_count = 0
@@ -35,7 +45,7 @@ class Chart:
 
         return notes_count
 
-    def base_score(self, include_note_lengths):
+    def base_score(self, time_signatures, include_note_lengths):
         score = 0
         multiplier = 1
         unique_note_index = 0
@@ -57,21 +67,21 @@ class Chart:
 
             score += self.NOTE_SCORE * multiplier
 
-            if include_note_lengths and self.notes[i]["length"] > 0 and unique_note:
-                score += self.NOTE_SCORE * 2 * multiplier * self.notes[i]["length"] / self.measure_length
-            '''
+            if include_note_lengths and self.notes[i]["length"] > 0:
+                score += self.NOTE_SCORE / 2 * multiplier * self.notes[i]["length"] / self.resolution
+            """
             if i == 0:
                 print(str(unique_note_index) + " - " + str(score))
             elif self.notes[i]["position"] > self.notes[i - 1]["position"]:
                 print(str(unique_note_index) + " - " + str(score))  
-            '''             
+            """             
 
         return score
 
-    '''
-        Since the song's length is based on the song file, the average multiplier is calculated using 
-        the chart's length, not the song.
-    '''
+    """
+        Since the song"s length is based on the song file, the average multiplier is calculated using 
+        the chart"s length, not the song.
+    """
     def avg_multiplier(self):
 
         multiplier = 1
@@ -121,13 +131,28 @@ class Chart:
 
 class Song:
 
-    DIFFICULTIES = [
-        'ExpertSingle', 'HardSingle', 'MediumSingle', 'EasySingle',
-        'ExpertDoubleBass','HardDoubleBass', 'MediumDoubleBass', 'EasyDoubleBass'
-        'ExpertDoubleRhythm','HardDoubleRhythm', 'MediumDoubleRhythm', 'EasyDoubleRhythm'
-        'ExpertKeyboard','HardKeyboard', 'MediumKeyboard', 'EasyKeyboard'
-        'ExpertDrums','HardDrums', 'MediumDrums', 'EasyDrums'
-        ]
+    DIFFICULTIES = {
+        "ExpertSingle": "Expert Guitar", 
+        "HardSingle": "Hard Guitar", 
+        "MediumSingle": "Medium Guitar", 
+        "EasySingle": "Easy Guitar",
+        "ExpertDoubleBass": "Expert Bass",
+        "HardDoubleBass": "Hard Bass", 
+        "MediumDoubleBass": "Medium Bass", 
+        "EasyDoubleBass": "Easy Bass",
+        "ExpertDoubleRhythm": "Expert Rhythm",
+        "HardDoubleRhythm": "Hard Rhythm", 
+        "MediumDoubleRhythm": "Medium Rhythm", 
+        "EasyDoubleRhythm": "Easy Rhythm",
+        "ExpertKeyboard": "Expert Keys", 
+        "HardKeyboard": "Hard Keys", 
+        "MediumKeyboard": "Medium Keys", 
+        "EasyKeyboard": "Easy Keys",
+        "ExpertDrums": "Exper tDrums",
+        "HardDrums": "Hard Drums", 
+        "MediumDrums": "Medium Drums", 
+        "EasyDrums": "Easy Drums"
+    }
 
     def __init__(self, name, charter, resolution=192):
         self.name = name if name else "Unknown"

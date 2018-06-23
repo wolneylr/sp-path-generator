@@ -26,7 +26,7 @@ class Application(tk.Tk):
         self.spphrases_strvar.set(str(len(chart.sp_phrases)))
         self.uniquenotes_strvar.set(str(chart.total_unique_notes()))
         self.notes_strvar.set(len(chart.notes))
-        self.basescore_strvar.set(round(chart.base_score(True), 3))
+        self.basescore_strvar.set(round(chart.base_score(self.song.time_signatures, True), 3))
         self.baseavgmult_strvar.set(round(chart.avg_multiplier(), 3))
 
     def on_open(self):
@@ -85,7 +85,7 @@ class Application(tk.Tk):
                     bpm_list = str_bpm.split()
                     bpm =	{
                             "position": int(bpm_list[0]),
-                            "value": int(bpm_list[3])
+                            "value": int(bpm_list[3]) / 100
                     }
                     self.song.add_bpm(bpm)   
 
