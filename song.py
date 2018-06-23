@@ -6,6 +6,7 @@ class Chart:
     BROKED_SCORE = 55850
     KILLING_SCORE = 393643
     MEUERRO_SCORE = 159402
+    BATCOUNTRY_SCORE = 390278
     SOULLESS4_AVGMULT = 2079014
     BROKED_AVGMULT = 3.777
 
@@ -15,7 +16,7 @@ class Chart:
         self.notes = []
         self.sp_phrases = []
         self.resolution = resolution
-    
+
     def pos_in_phrase(self, position):
         s = 0
 
@@ -24,7 +25,6 @@ class Chart:
                 s += 1
             else:
                 return self.sp_phrases[s]["position"] <= position
-
             
         return False   
 

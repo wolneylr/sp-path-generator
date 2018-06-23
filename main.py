@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 
+import math
 from decimal import Decimal
 
 class Application(tk.Tk):
@@ -85,7 +86,7 @@ class Application(tk.Tk):
                     bpm_list = str_bpm.split()
                     bpm =	{
                             "position": int(bpm_list[0]),
-                            "value": int(bpm_list[3]) / 100
+                            "value": math.trunc(int(bpm_list[3]) / 1000) 
                     }
                     self.song.add_bpm(bpm)   
 
@@ -93,8 +94,13 @@ class Application(tk.Tk):
                 sections = [line for line in str_content if " = E " in line]
 
                 for str_section in sections:
+                    section_list = str_section.split()
                     start_index = str_section.find("section ") + len("section ") 
-                    self.song.add_section(str_section[start_index : len(str_section) - 1])
+                    section = {
+                            "position": int(section_list[0]),
+                            "name": str_section[start_index : len(str_section) - 1]
+                    }
+                    self.song.add_section(section)
 
             elif str_part in self.song.DIFFICULTIES:
                 chart = Chart(str_part, self.song.resolution)
