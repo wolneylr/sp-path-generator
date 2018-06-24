@@ -95,18 +95,16 @@ class Chart_Img():
         self.draw_chart(False)
         self.draw_chart(True)
 
-        self.ims.write_to_png("Chart Images/" + self.song.name.lower().replace(" ", "") + ".png")
-
-
+        self.ims.write_to_png("docs/Chart Images/" + self.song.name.lower().replace(" ", "") + ".png")
 
     def calculate_height(self):
-        height = 110
+        height = self.c_y
 
         c_ts = 0
-        self.c_measure_length = 0
         c_length = 0
+
         self.c_x = self.MEASURE_OFFSET      
-        
+        self.c_measure_length = 0
 
         while c_length <= self.chart_length:
             if c_ts <  len(self.song.time_signatures) - 1:
@@ -197,8 +195,8 @@ class Chart_Img():
     def draw_chart(self, draw_notes): 
 
         c_length = 0
-        #c_bpm = 0
         c_ts = -1
+        
         self.c_measure_length = 0
         self.c_x = self.MEASURE_OFFSET
         self.c_y = 110
@@ -232,7 +230,9 @@ class Chart_Img():
         while c_length <= self.chart_length:
 
             measure_num += 1  
-
+            measure_score = 0
+            
+            # Checks if time signature changes
             if c_ts <  len(self.song.time_signatures) - 1:
                 if self.song.time_signatures[c_ts + 1]["position"] == c_length: 
                     show_ts = True
@@ -250,7 +250,7 @@ class Chart_Img():
                 self.c_y += self.LINE_OFFSET
                 self.c_measure_length = 0
 
-                self.line_num += 1
+                self.line_num += 1       
 
             if show_ts and not draw_notes:
                 self.cr.select_font_face("Arial Black", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
@@ -372,9 +372,9 @@ class Chart_Img():
                         sp += 1
 
                         if sp == len(sp_phrases):
-                            break  
-            
-            if draw_notes:
+                            break          
+
+            if draw_notes:   
                 # Draws remaining note length from last measure
                 for i in range(len(note_lengths)):
                     if note_lengths[i] > 0:
@@ -393,6 +393,7 @@ class Chart_Img():
                                 self.cr.stroke()
 
                             note_lengths[i] -= measure_length * self.m2l
+                            measure_score += self.chart.NOTE_SCORE / 2 * measure_length / self.song.resolution
                         else:
                             if i == 5:
                                 self.cr.set_source_rgba(1, 0, 1, 0.5)
@@ -402,9 +403,11 @@ class Chart_Img():
                             else:
                                 self.cr.line_to(self.c_x + note_lengths[i], self.c_y + i * self.notes_offset) 
                                 self.cr.stroke()
+                            measure_score += self.chart.NOTE_SCORE / 2 * note_lengths[i] / self.song.resolution    
                             note_lengths[i] = 0
 
-                # Draws notes in measure     
+
+                # Draws notes in measure  
                 if n < len(self.notes): 
                     while self.notes[n]["position"] < c_length + measure_length:               
                         note_line_pos = self.notes[n]["position"] * self.m2l - sum(self.line_lengths)
@@ -414,12 +417,14 @@ class Chart_Img():
 
                         self.draw_note(x, y, self.notes[n]["number"], self.chart.pos_in_phrase(self.notes[n]["position"]))
 
+                        measure_score += self.chart.NOTE_SCORE
+
                         if self.notes[n]["length"] > 0:                    
                             self.cr.move_to(x, y)
 
-                            length_pos = x + self.notes[n]["length"] * self.m2l
+                            length_pos = x + self.notes[n]["length"] * self.m2l    
 
-                            measure_pos = self.MEASURE_OFFSET + (c_length + measure_length) * self.m2l - sum(self.line_lengths)
+                            measure_pos = self.MEASURE_OFFSET + (c_length + measure_length) * self.m2l - sum(self.line_lengths)             
                             
                             if length_pos > measure_pos:
                                 if self.notes[n]["number"] == 7:
@@ -431,6 +436,8 @@ class Chart_Img():
                                     self.cr.line_to(measure_pos, y) 
                                     self.cr.stroke()
 
+                                measure_score += self.chart.NOTE_SCORE / 2 * measure_length / self.song.resolution
+
                                 note_lengths[5 if self.notes[n]["number"] == 7 else self.notes[n]["number"]] = \
                                     length_pos - measure_pos
                             else:
@@ -441,12 +448,22 @@ class Chart_Img():
                                     self.cr.set_source_rgba(1, 0, 1, 1)   
                                 else:
                                     self.cr.line_to(length_pos, y)   
-                                    self.cr.stroke()    
+                                    self.cr.stroke()  
+
+                                measure_score += self.chart.NOTE_SCORE / 2 * note_lengths[i] / self.song.resolution  
 
                         n += 1
 
                         if n == len(self.notes):
-                            break            
+                            break     
+
+                # Draws measure score
+                self.cr.set_source_rgb(0.5, 0.5, 0.5)  
+                str_measure_score = str(math.floor(measure_score))
+                (_, _, width, _, _, _) = self.cr.text_extents(str_measure_score)
+                #self.cr.move_to(measure_pos - width, self.c_y + 5 * self.notes_offset)   
+                #self.cr.show_text(str_measure_score)   
+
 
     
             self.c_x += measure_length * self.m2l
@@ -458,7 +475,7 @@ class Chart_Img():
 
 def main():
     app = Application()
-    app.read_chart("Chart Examples/mikeorlando.chart")
+    app.read_chart("docs/Chart Examples/mikeorlando.chart")
 
     Chart_Img(app.song, app.song.charts[0])
 
