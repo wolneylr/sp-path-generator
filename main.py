@@ -1,12 +1,12 @@
-from song import Song, Chart
-#from chart_img import Chart_Img
-
+import math
 import tkinter as tk
+from decimal import Decimal
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 
-import math
-from decimal import Decimal
+from util.song import Chart, Song
+
+#from chart_img import Chart_Img
 
 class Application(tk.Tk):
     def __init__(self):
@@ -21,7 +21,7 @@ class Application(tk.Tk):
 
         #chart_img = Chart_Img(self.song.name, chart)
 
-    def show_chart_info(self, event=None):  
+    def show_chart_info(self, event=None):
         chart = self.song.charts[self.chart_diffs.index(self.chart_box.get())]
 
         self.spphrases_strvar.set(str(len(chart.sp_phrases)))
@@ -31,8 +31,7 @@ class Application(tk.Tk):
         self.baseavgmult_strvar.set(round(chart.avg_multiplier(), 3))
 
     def on_open(self):
-        self.file_name = askopenfilename(filetypes=(('Chart files', '*.chart'), \
-            ("All files", "*.*")))
+        self.file_name = askopenfilename(filetypes=(('Chart files', '*.chart'),("All files", "*.*")))
 
         if self.file_name:
             print(self.file_name)
@@ -280,4 +279,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -1,5 +1,7 @@
-import cairocffi as cairo
 import math
+
+import cairocffi as cairo
+
 from main import Application
 
 class Chart_Img():
@@ -12,19 +14,9 @@ class Chart_Img():
     NOTE_RADIUS = 3
     STAR_SCALE = 30
 
-    STAR_POINTS = ( 
-        ( 0, 85 ), 
-        ( 75, 75 ), 
-        ( 100, 10 ), 
-        ( 125, 75 ), 
-        ( 200, 85 ),
-        ( 150, 125 ), 
-        ( 160, 190 ),
-        ( 100, 150 ), 
-        ( 40, 190 ),
-        ( 50, 125 ),
-        ( 0, 85 )
-    )
+    STAR_POINTS = ((0, 85), (75, 75), (100, 10),
+        (125, 75), (200, 85), (150, 125), (160, 190),
+        (100, 150), (40, 190), (50, 125), (0, 85))
 
     COLORS = [
         [0, 0.9, 0], 
@@ -95,7 +87,7 @@ class Chart_Img():
         self.draw_chart(False)
         self.draw_chart(True)
 
-        self.ims.write_to_png("docs/Chart Images/" + self.song.name.lower().replace(" ", "") + ".png")
+        self.ims.write_to_png("assets/Chart Images/" + self.song.name.lower().replace(" ", "") + ".png")
 
     def calculate_height(self):
         height = self.c_y
@@ -475,7 +467,7 @@ class Chart_Img():
 
 def main():
     app = Application()
-    app.read_chart("docs/Chart Examples/mikeorlando.chart")
+    app.read_chart("assets/Chart Examples/mikeorlando.chart")
 
     Chart_Img(app.song, app.song.charts[0])
 
