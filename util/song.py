@@ -7,7 +7,7 @@ class Chart:
     KILLING_SCORE = 393643
     MEUERRO_SCORE = 159402
     BATCOUNTRY_SCORE = 390278
-    SOULLESS4_AVGMULT = 2079014
+    SOULLESS4_SCORE = 2079014
     BROKED_AVGMULT = 3.777
 
     def __init__(self, difficulty, resolution):
@@ -45,12 +45,30 @@ class Chart:
 
         return notes_count
 
-    def base_score(self, time_signatures, include_note_lengths):
+    def calc_unote_index(self, note):
+        note_index = self.notes.index(note)
+        unique_note_index = 0
+
+        for i in range(note_index + 1):
+            if i == 0:
+                unique_note_index += 1
+            elif self.notes[i]["position"] > self.notes[i - 1]["position"]:
+                unique_note_index += 1
+
+        return unique_note_index
+
+    def calc_note_multiplier(self, unote_index):
+        if unote_index > 30:
+            return 4
+        else:
+            return math.floor(unote_index / 10) + 1
+
+    def calculate_score(self, start, end, time_signatures, include_note_lengths):
         score = 0
         multiplier = 1
         unique_note_index = 0
 
-        for i in range(len(self.notes)):
+        for i in range(start, end):
             unique_note = False
 
             if i == 0:

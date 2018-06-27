@@ -22,13 +22,11 @@ class Application(tk.Tk):
         #chart_img = Chart_Img(self.song.name, chart)
 
     def show_chart_info(self, event=None):
-        chart = self.song.charts[self.chart_diffs.index(self.chart_box.get())]
-
-        self.spphrases_strvar.set(str(len(chart.sp_phrases)))
-        self.uniquenotes_strvar.set(str(chart.total_unique_notes()))
-        self.notes_strvar.set(len(chart.notes))
-        self.basescore_strvar.set(round(chart.base_score(self.song.time_signatures, True), 3))
-        self.baseavgmult_strvar.set(round(chart.avg_multiplier(), 3))
+        self.spphrases_strvar.set(str(len(self.chart.sp_phrases)))
+        self.uniquenotes_strvar.set(str(self.chart.total_unique_notes()))
+        self.notes_strvar.set(len(self.chart.notes))
+        self.basescore_strvar.set(round(self.chart.calculate_score(0, len(self.chart.notes), self.song.time_signatures, True), 3))
+        self.baseavgmult_strvar.set(round(self.chart.avg_multiplier(), 3))
 
     def on_open(self):
         self.file_name = askopenfilename(filetypes=(('Chart files', '*.chart'),("All files", "*.*")))
@@ -85,7 +83,7 @@ class Application(tk.Tk):
                     bpm_list = str_bpm.split()
                     bpm =	{
                             "position": int(bpm_list[0]),
-                            "value": math.trunc(int(bpm_list[3]) / 1000) 
+                            "value": math.trunc(int(round(int(bpm_list[3]) / 1000))) 
                     }
                     self.song.add_bpm(bpm)   
 
@@ -136,6 +134,8 @@ class Application(tk.Tk):
 
         self.chart_diffs = [chart.difficulty for chart in self.song.charts]
         #self.create_chart_image() 
+
+        self.chart = self.song.charts[self.chart_diffs.index(self.chart_box.get())]
 
         self.show_chart_info()
         self.chart_box.bind("<<ComboboxSelected>>", self.show_chart_info)    
