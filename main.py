@@ -88,7 +88,7 @@ class Application(tk.Tk):
                     self.song.add_bpm(bpm)   
 
             elif str_part == "Events":
-                sections = [line for line in str_content if " = E " in line]
+                sections = [line for line in str_content if " = E \"section " in line]
 
                 for str_section in sections:
                     section_list = str_section.split()
@@ -101,7 +101,18 @@ class Application(tk.Tk):
 
             elif str_part in self.song.DIFFICULTIES:
                 chart = Chart(str_part, self.song.resolution)
-                str_notes = [line for line in str_content if " = N " in line]
+                str_notes = []
+                str_sp_phrases = []
+                str_solo_sections = []
+
+                for line in str_content:
+                    if " = N " in line:
+                        str_notes.append(line)
+                    elif " = S 2" in line:
+                        str_sp_phrases.append(line)
+                    elif " = E solo" in line:
+                        str_solo_sections.append(line)
+
                 for str_note in str_notes:
                     note_list = str_note.split()
                     if int(note_list[3]) < 5 or int(note_list[3]) == 7:
@@ -112,7 +123,6 @@ class Application(tk.Tk):
                         }
                         chart.add_note(note)
 
-                str_sp_phrases = [line for line in str_content if " = S 2 " in line]
                 for str_sp_phrase in str_sp_phrases:
                     sp_phrase_list = str_sp_phrase.split()
                     sp_phrase =	{
@@ -121,7 +131,18 @@ class Application(tk.Tk):
                     }
                     chart.add_sp_phrase(sp_phrase)   
 
-                
+                solo_section_pos = 0
+                for str_solo_section in str_solo_sections:
+                    solo_section_list = str_solo_section.split()
+                    if solo_section_list[3] == "solo":
+                        solo_section_pos = int(solo_section_list[0])
+                    elif solo_section_list[3] == "soloend":
+                        solo_section =	{
+                            "position": solo_section_pos,
+                            "length": int(solo_section_list[0]) - solo_section_pos
+                        }
+                        chart.add_solo_section(solo_section)   
+
                 self.song.add_chart(chart)      
 
                 

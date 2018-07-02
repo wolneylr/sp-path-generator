@@ -1,4 +1,5 @@
 import math
+from decimal import Decimal, ROUND_HALF_UP
 
 import cairocffi as cairo
 
@@ -30,6 +31,9 @@ class Chart_Img():
 
     SP_PHRASE_COLOR = [0, 0.7, 0]
     SP_PHRASE_ALPHA = 0.4
+
+    SOLO_SECTION_COLOR = [0.7, 0.7, 0]
+    SOLO_SECTION_ALPHA = 0.4
 
     def __init__(self, song, chart):
         self.song = song
@@ -68,7 +72,7 @@ class Chart_Img():
             self.crs[page].fill()
 
             self.crs[page].set_source_rgb(0, 0, 0)
-            self.crs[page].select_font_face("Arial", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+            self.crs[page].select_font_face("Calibri", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 
             height -= self.MAX_HEIGHT
 
@@ -195,6 +199,12 @@ class Chart_Img():
                 self.crs[self.c_cr].stroke_preserve()      
                 self.crs[self.c_cr].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], 
                 self.NOTE_COLORS[color][2])
+                '''
+                self.crs[self.c_cr].fill()
+                self.crs[self.c_cr].arc(x, y, self.NOTE_RADIUS / 3, 0, 2 * math.pi)
+                self.crs[self.c_cr].stroke_preserve()      
+                self.crs[self.c_cr].set_source_rgb(0.8, 0.8, 0.8)
+                '''
 
         self.crs[self.c_cr].fill()
 
@@ -225,17 +235,21 @@ class Chart_Img():
         show_ts = False
 
         n = 0
-        note_lengths = [0, 0, 0, 0, 0, 0]
-
-        sp_phrases = self.chart.sp_phrases
-        sp = 0
-        sp_phrase_length = 0
+        sustain_notes = []
 
         bpms = self.song.bpms
         b = 0
 
         sections = self.song.sections
         s = 0
+
+        sp_phrases = self.chart.sp_phrases
+        sp = 0
+        sp_phrase_length = 0
+
+        solo_sections = self.chart.solo_sections
+        sl = 0    
+        solo_section_length = 0
 
         c_score = 0
         c_multiplier = 1
@@ -293,7 +307,7 @@ class Chart_Img():
                     show_ts = False
 
                 # Draws the measure number
-                self.crs[self.c_cr].select_font_face("Arial", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+                self.crs[self.c_cr].select_font_face("Calibri", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
                 self.crs[self.c_cr].set_source_rgb(0.8, 0.2, 0.2)    
                 self.crs[self.c_cr].set_font_size(9)
                 self.crs[self.c_cr].move_to(self.c_x, self.c_y - measure_num_offset)
@@ -335,6 +349,21 @@ class Chart_Img():
 
                     self.crs[self.c_cr].fill()      
                     self.crs[self.c_cr].set_source_rgba(0.7, 0.7, 0.7, 1)  
+                
+                # Draws remaining solo section length from last measure
+                if solo_section_length > 0:
+                    self.crs[self.c_cr].set_source_rgba(self.SOLO_SECTION_COLOR[0], self.SOLO_SECTION_COLOR[1], 
+                    self.SOLO_SECTION_COLOR[2], self.SOLO_SECTION_ALPHA)
+
+                    if solo_section_length > measure_length * self.m2l:
+                        self.crs[self.c_cr].rectangle(self.c_x, self.c_y, measure_length * self.m2l, 4 * self.notes_offset)
+                        solo_section_length -= measure_length * self.m2l               
+                    else:
+                        self.crs[self.c_cr].rectangle(self.c_x, self.c_y, sp_phrase_length, 4 * self.notes_offset) 
+                        solo_section_length = 0
+
+                    self.crs[self.c_cr].fill()      
+                    self.crs[self.c_cr].set_source_rgba(0.7, 0.7, 0.7, 1)  
 
                 # Draws bpms in measure
                 self.crs[self.c_cr].set_source_rgb(0, 0, 0)   
@@ -355,8 +384,9 @@ class Chart_Img():
                         if b == len(bpms):
                             break  
 
-                # Draws sections im measure
+                # Draws sections in measure
                 self.crs[self.c_cr].set_source_rgb(0, 0, 0)   
+                self.crs[self.c_cr].set_font_size(11)  
                 if s < len(sections):
                     while sections[s]["position"] < c_length:  
                         section_pos = sections[s]["position"] * self.m2l - sum(self.line_lengths)
@@ -402,43 +432,105 @@ class Chart_Img():
 
                         if sp == len(sp_phrases):
                             break          
+
+                # Draws solo sections in measure 
+                if sl < len(solo_sections):
+                    while solo_sections[sl]["position"] < c_length:  
+                        solo_section_line_pos = solo_sections[sl]["position"] * self.m2l - sum(self.line_lengths)
+
+                        x = self.MEASURE_OFFSET + solo_section_line_pos
+
+                        self.crs[self.c_cr].move_to(x, self.c_y)
+
+                        length_pos = x + solo_sections[sl]["length"] * self.m2l
+
+                        measure_pos = self.MEASURE_OFFSET + c_length * self.m2l - sum(self.line_lengths)
+                            
+                        self.crs[self.c_cr].set_source_rgba(self.SOLO_SECTION_COLOR[0], self.SOLO_SECTION_COLOR[1], 
+                            self.SOLO_SECTION_COLOR[2], self.SOLO_SECTION_ALPHA)
+
+                        if length_pos > measure_pos:             
+                            self.crs[self.c_cr].rectangle(x, self.c_y, measure_pos - x, 4 * self.notes_offset) 
+                            solo_section_length = length_pos - measure_pos
+                        else:
+                            self.crs[self.c_cr].rectangle(x, self.c_y, length_pos - x, 4 * self.notes_offset) 
+
+                        self.crs[self.c_cr].fill()      
+                        self.crs[self.c_cr].set_source_rgba(0.7, 0.7, 0.7, 1)   
+
+
+                        sl += 1
+
+                        if sl == len(solo_sections):
+                            break     
             else:   
                 # Draws remaining note length from last measure
-                for i in range(len(note_lengths)):
-                    if note_lengths[i] > 0:
+                if sustain_notes:
+                    for i in range(len(sustain_notes)):
 
-                        self.crs[self.c_cr].set_source_rgb(self.NOTE_COLORS[i][0], self.NOTE_COLORS[i][1], self.NOTE_COLORS[i][2])
-                        self.crs[self.c_cr].move_to(self.c_x, self.c_y + i * self.notes_offset)
+                        num = sustain_notes[i]["number"]
 
-                        if note_lengths[i] > measure_length * self.m2l:
+                        self.crs[self.c_cr].set_source_rgb(self.NOTE_COLORS[num][0], self.NOTE_COLORS[num][1], \
+                            self.NOTE_COLORS[num][2])
+                        self.crs[self.c_cr].move_to(self.c_x, self.c_y + num * self.notes_offset)
+
+                        if sustain_notes[i]["length"] > measure_length:
+                            line_length = measure_length * self.m2l
                             # Open note
-                            if i == 5:
+                            if num == 5:
                                 self.crs[self.c_cr].set_source_rgba(1, 0, 1, 0.5)
-                                self.crs[self.c_cr].rectangle(self.c_x, self.c_y, measure_length * self.m2l, 4 * self.notes_offset) 
+                                self.crs[self.c_cr].rectangle(self.c_x, self.c_y, line_length, 4 * self.notes_offset) 
                                 self.crs[self.c_cr].fill()      
                                 self.crs[self.c_cr].set_source_rgba(1, 0, 1, 1)   
                             else:
-                                self.crs[self.c_cr].line_to(self.c_x + measure_length * self.m2l, self.c_y + i * self.notes_offset) 
-                                self.crs[self.c_cr].stroke()                         
+                                self.crs[self.c_cr].line_to(self.c_x + line_length, self.c_y + num * self.notes_offset) 
+                                self.crs[self.c_cr].stroke()   
 
-                            note_measure_length = measure_length              
-                            note_lengths[i] -= measure_length * self.m2l
+                            if self.chart.is_unique_note(sustain_notes[i]):    
+                                length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * measure_length / self.song.resolution
+                                length_score = int(math.ceil(length_score))
+                                # length_score = round(length_score)
+                                # length_score = int(Decimal(length_score).quantize(0, ROUND_HALF_UP))
+
+                                measure_score += length_score
+                                c_score += length_score
+
+                            sustain_notes[i]["length"] -= measure_length       
+
                         else:
+                            line_length = sustain_notes[i]["length"] * self.m2l
                             # Open note
-                            if i == 5:
+                            if num == 5:
                                 self.crs[self.c_cr].set_source_rgba(1, 0, 1, 0.5)
-                                self.crs[self.c_cr].rectangle(self.c_x, self.c_y, note_lengths[i], 4 * self.notes_offset) 
+                                self.crs[self.c_cr].rectangle(self.c_x, self.c_y, line_length, 4 * \
+                                    self.notes_offset) 
                                 self.crs[self.c_cr].fill()
                                 self.crs[self.c_cr].set_source_rgba(1, 0, 1, 1)   
                             else:
-                                self.crs[self.c_cr].line_to(self.c_x + note_lengths[i], self.c_y + i * self.notes_offset) 
+                                self.crs[self.c_cr].line_to(self.c_x + line_length, self.c_y + num * \
+                                    self.notes_offset) 
                                 self.crs[self.c_cr].stroke()
 
-                            note_measure_length = note_lengths[i] / self.m2l
-                            note_lengths[i] = 0
+                            if self.chart.is_unique_note(sustain_notes[i]):    
+                                length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * \
+                                    sustain_notes[i]["length"] / self.song.resolution
+                                length_score = int(math.ceil(length_score))
+                                # length_score = round(length_score)
+                                # length_score = int(Decimal(length_score).quantize(0, ROUND_HALF_UP))
+
+                                measure_score += length_score
+                                c_score += length_score
+
+                            sustain_notes[i]["length"] = 0           
                         
-                        measure_score += self.chart.NOTE_SCORE / 2 * c_multiplier * note_measure_length / self.song.resolution
-                        c_score += self.chart.NOTE_SCORE / 2 * c_multiplier * note_measure_length / self.song.resolution
+                    # Removes notes with empty length
+                    for i in range(len(sustain_notes)):
+                        if i >= len(sustain_notes):
+                            break
+
+                        if sustain_notes[i]["length"] == 0:
+                            sustain_notes.remove(sustain_notes[i])
+                
                 # Draws notes in measure  
                 measure_pos = self.MEASURE_OFFSET + c_length * self.m2l - sum(self.line_lengths)     
 
@@ -459,7 +551,11 @@ class Chart_Img():
                         measure_score += self.chart.NOTE_SCORE * c_multiplier
                         c_score += self.chart.NOTE_SCORE * c_multiplier
 
-                        if self.notes[n]["length"] > 0:     
+                        if self.chart.pos_in_solo(self.notes[n]["position"]) :
+                            measure_score += self.chart.NOTE_SCORE * 2
+                            c_score += self.chart.NOTE_SCORE * 2
+
+                        if self.notes[n]["length"] > 0: 
                             self.crs[self.c_cr].move_to(x, y)                                     
 
                             length_pos = x + self.notes[n]["length"] * self.m2l                             
@@ -475,13 +571,22 @@ class Chart_Img():
                                     self.crs[self.c_cr].line_to(measure_pos, y) 
                                     self.crs[self.c_cr].stroke()
 
-                                note_length = (measure_pos - x) / self.m2l
+                                if self.chart.is_unique_note(self.notes[n]):     
+                                    note_measure_length = (measure_pos - x) / self.m2l
 
-                                measure_score += self.chart.NOTE_SCORE / 2 * c_multiplier * note_length / self.song.resolution
-                                c_score += self.chart.NOTE_SCORE / 2 * c_multiplier * note_length / self.song.resolution
+                                    length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * \
+                                    note_measure_length / self.song.resolution      
 
-                                note_lengths[5 if self.notes[n]["number"] == 7 else self.notes[n]["number"]] = \
-                                    length_pos - measure_pos
+                                    length_score = int(math.ceil(length_score))
+                                    # length_score = round(length_score)
+                                    # length_score = int(Decimal(length_score).quantize(0, ROUND_HALF_UP))
+
+                                    measure_score += length_score
+                                    c_score += length_score    
+
+                                self.notes[n]["length"] -= note_measure_length
+
+                                sustain_notes.append(self.notes[n])                           
                                 
                             else:
                                 # Open note
@@ -494,11 +599,17 @@ class Chart_Img():
                                     self.crs[self.c_cr].line_to(length_pos, y)   
                                     self.crs[self.c_cr].stroke()  
 
-                                measure_score += self.chart.NOTE_SCORE / 2 * c_multiplier * self.notes[n]["length"] \
-                                    / self.song.resolution   
-                                c_score += self.chart.NOTE_SCORE / 2 * c_multiplier * self.notes[n]["length"] \
-                                    / self.song.resolution 
+                                if self.chart.is_unique_note(self.notes[n]):     
+                                    length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * self.notes[n]["length"] \
+                                        / self.song.resolution 
+                                    
+                                    length_score = int(math.ceil(length_score))
+                                    # length_score = round(length_score)
+                                    # length_score = int(Decimal(length_score).quantize(0, ROUND_HALF_UP))
 
+                                    measure_score += length_score
+                                    c_score += length_score
+                              
                         n += 1
 
                         if n == len(self.notes):
@@ -524,7 +635,8 @@ class Chart_Img():
 
 def main():
     app = Application()
-    app.read_chart("assets/Chart Examples/ultimatechallenge.chart")
+    
+    app.read_chart("assets/Chart Examples/guitarvsbass.chart")
 
     Chart_Img(app.song, app.song.charts[0])
 

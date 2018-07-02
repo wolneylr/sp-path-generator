@@ -1,4 +1,5 @@
 import math
+import decimal
 
 class Chart:
     NOTE_SCORE = 50
@@ -6,6 +7,7 @@ class Chart:
     BROKED_SCORE = 55850
     KILLING_SCORE = 393643
     MEUERRO_SCORE = 159402
+    BATCOUNTRY_SCORE_NO_SOLO = 363378
     BATCOUNTRY_SCORE = 390278
     SOULLESS4_SCORE = 2079014
     BROKED_AVGMULT = 3.777
@@ -15,6 +17,7 @@ class Chart:
         self.sections = []
         self.notes = []
         self.sp_phrases = []
+        self.solo_sections = []
         self.resolution = resolution
 
     def pos_in_phrase(self, position):
@@ -28,11 +31,25 @@ class Chart:
             
         return False   
 
+    def pos_in_solo(self, position):
+        s = 0
+
+        while s < len(self.solo_sections):
+            if self.solo_sections[s]["position"] + self.solo_sections[s]["length"] < position:  
+                s += 1
+            else:
+                return self.solo_sections[s]["position"] <= position
+            
+        return False   
+
     def add_note(self, note):
         self.notes.append(note)
 
     def add_sp_phrase(self, sp_phrase):
         self.sp_phrases.append(sp_phrase)
+
+    def add_solo_section(self, solo_section):
+        self.solo_sections.append(solo_section)
 
     def total_unique_notes(self):
         notes_count = 0
@@ -63,30 +80,40 @@ class Chart:
         else:
             return math.floor(unote_index / 10) + 1
 
+    def is_unique_note(self, note):
+        note_index = self.notes.index(note)
+
+        if note_index == 0:
+            return True
+        elif self.notes[note_index]["position"] > self.notes[note_index - 1]["position"]:
+            return True
+        
+        return False
+
     def calculate_score(self, start, end, time_signatures, include_note_lengths):
         score = 0
         multiplier = 1
         unique_note_index = 0
 
         for i in range(start, end):
-            unique_note = False
 
-            if i == 0:
-                unique_note = True
-            elif self.notes[i]["position"] > self.notes[i - 1]["position"]:
-                unique_note = True
+            unique_note = self.is_unique_note(self.notes[i])
 
             if unique_note:
-                unique_note_index += 1
-                if unique_note_index > 30:
-                    multiplier = 4
-                else:
-                    multiplier = math.floor(unique_note_index / 10) + 1
+                if multiplier < 4:
+                    unique_note_index += 1
+                    if unique_note_index > 30:
+                        multiplier = 4
+                    else:
+                        multiplier = math.floor(unique_note_index / 10) + 1
 
             score += self.NOTE_SCORE * multiplier
 
-            if include_note_lengths and self.notes[i]["length"] > 0:
+            if include_note_lengths and self.notes[i]["length"] > 0 and unique_note:
                 score += self.NOTE_SCORE / 2 * multiplier * self.notes[i]["length"] / self.resolution
+                score = int(round(score))
+                #score = int(math.ceil(score))
+               # score = score.quantize(decimal.Decimal('1'), rounding=decimal.ROUND_HALF_UP)
             """
             if i == 0:
                 print(str(unique_note_index) + " - " + str(score))
@@ -113,28 +140,28 @@ class Chart:
         sum_multiplier = 0       
         unique_note_index = 0
 
-        multinc_pos = []
+        # multinc_pos = []
 
         for i in range(len(self.notes)):
-            unique_note = False
+            if self.is_unique_note(self.notes[i]):
+                if multiplier < 4:
+                    unique_note_index += 1
+                    if unique_note_index == 30:
+                        multiplier = 4
+                        # multinc_pos.append(self.notes[i]["position"])
+                        # break
+                    else:
+                        multiplier = math.floor(unique_note_index / 10) + 1
+                        '''
+                        next_multiplier = math.floor(unique_note_index / 10) + 1
+                        if next_multiplier > multiplier:
+                            multiplier = next_multiplier
+                            multinc_pos.append(self.notes[i]["position"])
+                        '''
 
-            if i == 0:
-                unique_note = True
-            elif self.notes[i]["position"] > self.notes[i - 1]["position"]:
-                unique_note = True
+                sum_multiplier += multiplier
 
-            if unique_note is True:
-                unique_note_index += 1
-                if unique_note_index >= 30:
-                    multiplier = 4
-                    multinc_pos.append(self.notes[i]["position"])
-                    break
-                else:
-                    next_multiplier = math.floor(unique_note_index / 10) + 1
-                    if next_multiplier > multiplier:
-                        multiplier = next_multiplier
-                        multinc_pos.append(self.notes[i]["position"])
-
+        '''
         multiplier = 1
 
         for position in range(0, song_length):
@@ -146,6 +173,8 @@ class Chart:
             sum_multiplier += multiplier
 
         return sum_multiplier / song_length
+        '''
+        return sum_multiplier / self.total_unique_notes()
 
 class Song:
 
