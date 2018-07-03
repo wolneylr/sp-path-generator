@@ -5,7 +5,6 @@ from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 
 from util.song import Chart, Song
-
 #from chart_img import Chart_Img
 
 class Application(tk.Tk):
@@ -16,23 +15,19 @@ class Application(tk.Tk):
         self.title("SPPathCreator")
         self.create_widgets()
 
-    #def create_chart_image(self):
-        #chart = self.song.charts[self.chart_diffs.index(self.chart_box.get())]
-
-        #chart_img = Chart_Img(self.song.name, chart)
-
     def show_chart_info(self, event=None):
-        self.spphrases_strvar.set(str(len(self.chart.sp_phrases)))
-        self.uniquenotes_strvar.set(str(self.chart.total_unique_notes()))
-        self.notes_strvar.set(len(self.chart.notes))
-        self.basescore_strvar.set(round(self.chart.calculate_score(0, len(self.chart.notes), self.song.time_signatures, True), 3))
-        self.baseavgmult_strvar.set(round(self.chart.avg_multiplier(), 3))
+        chart = self.song.charts[self.chart_box.current()]
+        self.spphrases_strvar.set(str(len(chart.sp_phrases)))
+        self.uniquenotes_strvar.set(str(chart.total_unique_notes()))
+        self.notes_strvar.set(len(chart.notes))
+        self.basescore_strvar.set(round(chart.calculate_score(0, len(chart.notes), self.song.time_signatures, True), 3))
+        self.baseavgmult_strvar.set(round(chart.avg_multiplier(), 3))
 
     def on_open(self):
         self.file_name = askopenfilename(filetypes=(('Chart files', '*.chart'),("All files", "*.*")))
 
         if self.file_name:
-            print(self.file_name)
+            # print(self.file_name)
             self.read_chart(self.file_name)
 
     def read_chart(self, file_name):
@@ -150,19 +145,17 @@ class Application(tk.Tk):
         self.res_strvar.set(str(self.song.resolution))
         self.totsections_strvar.set(str(len(self.song.sections)))
 
-        self.chart_box["values"] = [chart.difficulty for chart in self.song.charts]
+        self.chart_box["values"] = [self.song.DIFFICULTIES[chart.difficulty] for chart in self.song.charts]
         self.chart_box.current(0)
 
-        self.chart_diffs = [chart.difficulty for chart in self.song.charts]
         #self.create_chart_image() 
-
-        self.chart = self.song.charts[self.chart_diffs.index(self.chart_box.get())]
 
         self.show_chart_info()
         self.chart_box.bind("<<ComboboxSelected>>", self.show_chart_info)    
 
         self.file_menu.entryconfig(1, state="normal")
         self.export_menu.entryconfig(0, state="normal")
+        self.export_menu.entryconfig(1, state="normal")
 
     def save_file(self):
         file_name = asksaveasfile(mode='w', defaultextension=".txt",
@@ -183,6 +176,23 @@ class Application(tk.Tk):
         
         file_name.close()
 
+    def export_chart(self):
+        file_name = asksaveasfile(mode='a', defaultextension=".png", 
+        filetypes = (("PNG files","*.png"),("All files","*.*")))
+        if file_name is None:
+            return
+
+        chart = self.song.charts[self.chart_box.current()]
+
+        chart_img = Chart_Img(self.song, chart)
+
+        for page in range(chart_img.num_pages):
+            #chart_img.imss[page].write_to_png("assets/Chart Images/" + self.song.name.lower().replace(" ", "") + \
+             #   (str(page + 1) if self.num_pages > 1 else "") + ".png")
+            chart_img.imss[page].write_to_png(file_name.name + (str(page + 1) if chart_img.num_pages > 1 else ""))
+        
+        file_name.close()
+
     def create_widgets(self):
         self.menu_bar = tk.Menu(self)
 
@@ -200,7 +210,9 @@ class Application(tk.Tk):
 
         self.export_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.export_menu.add_command(label="Sections", command=self.export_sections)
+        self.export_menu.add_command(label="Chart", command=self.export_chart)
         self.export_menu.entryconfig(0, state="disabled")
+        self.export_menu.entryconfig(1, state="disabled")
         self.menu_bar.add_cascade(label="Export", menu=self.export_menu)
 
         self.config(menu=self.menu_bar)

@@ -1,5 +1,67 @@
 import math
 import decimal
+import bisect
+
+class SP_Path:
+
+    def __init__(self, chart):
+        self.chart = chart
+        self.sp_activations = []
+        self.sp_note_pos = []
+
+        self.sp_bar = 0
+        self.sp_bar_length = self.chart.resolution * 64
+
+        self.add_sp_notes()
+        self.set_basic_sp_path()
+
+    def add_sp_notes(self):
+        s = 0
+        sp_phrases = self.chart.sp_phrases
+    
+        while s < len(sp_phrases):
+            self.sp_note_pos.append(self.chart.notes[bisect.bisect_right(
+            [note["position"] for note in self.chart.notes], 
+            sp_phrases[s]["position"] + sp_phrases[s]["length"] - 1)]["position"])  
+
+            s += 1
+
+            if s == len(sp_phrases):
+                break     
+            
+        print(str(self.sp_note_pos))
+
+    def can_activate_sp(self):
+        return self.sp_bar >= self.sp_bar_length / 2
+
+    def add_sp_activation(self, sp_activation):
+        self.sp_activations.append(sp_activation)
+
+    def set_basic_sp_path(self):
+        pos = 0
+        song_length = self.chart.notes[len(self.chart.notes) - 1]["position"] \
+            + self.chart.notes[len(self.chart.notes) - 1]["length"]
+
+        while pos < song_length:
+            
+            if pos >= self.sp_note_pos[0]:
+                self.sp_bar += self.chart.resolution * 16
+                self.sp_note_pos.remove(self.sp_note_pos[0])
+                if not self.sp_note_pos:
+                    break
+
+            if self.can_activate_sp():
+                sp_activation = {
+                    "position": pos,
+                    "length": self.sp_bar
+                }
+                self.sp_bar = 0
+                self.add_sp_activation(sp_activation)
+
+            pos += self.chart.resolution
+
+        print(str([sp_activation["position"] for sp_activation in self.sp_activations]))
+
 
 class Chart:
     NOTE_SCORE = 50
@@ -14,42 +76,54 @@ class Chart:
 
     def __init__(self, difficulty, resolution):
         self.difficulty = difficulty
-        self.sections = []
-        self.notes = []
-        self.sp_phrases = []
-        self.solo_sections = []
         self.resolution = resolution
+        self.sections = []
+        self.notes = []  
+        self.solo_sections = []
+        self.sp_phrases = []
+
+        self.sp = 0
+        self.sl = 0
+        self.sa = 0
+
+    def add_sp_path(self):
+        self.sp_path = SP_Path(self) 
 
     def pos_in_phrase(self, position):
-        s = 0
-
-        while s < len(self.sp_phrases):
-            if self.sp_phrases[s]["position"] + self.sp_phrases[s]["length"] - 1 < position:  
-                s += 1
+        while self.sp < len(self.sp_phrases):
+            if self.sp_phrases[self.sp]["position"] + self.sp_phrases[self.sp]["length"] - 1 < position:  
+                self.sp += 1
             else:
-                return self.sp_phrases[s]["position"] <= position
+                return self.sp_phrases[self.sp]["position"] <= position
             
         return False   
 
     def pos_in_solo(self, position):
-        s = 0
-
-        while s < len(self.solo_sections):
-            if self.solo_sections[s]["position"] + self.solo_sections[s]["length"] < position:  
-                s += 1
+        while self.sl < len(self.solo_sections):
+            if self.solo_sections[self.sl]["position"] + self.solo_sections[self.sl]["length"] < position:  
+                self.sl += 1
             else:
-                return self.solo_sections[s]["position"] <= position
+                return self.solo_sections[self.sl]["position"] <= position
+            
+        return False   
+
+    def pos_in_path(self, position):
+        while self.sa < len(self.sp_path.sp_activations):
+            if self.sp_path.sp_activations[self.sa]["position"] + self.sp_path.sp_activations[self.sa]["length"] < position:  
+                self.sa += 1
+            else:
+                return self.sp_path.sp_activations[self.sa]["position"] <= position
             
         return False   
 
     def add_note(self, note):
         self.notes.append(note)
 
-    def add_sp_phrase(self, sp_phrase):
-        self.sp_phrases.append(sp_phrase)
-
     def add_solo_section(self, solo_section):
         self.solo_sections.append(solo_section)
+
+    def add_sp_phrase(self, sp_phrase):
+        self.sp_phrases.append(sp_phrase)
 
     def total_unique_notes(self):
         notes_count = 0
@@ -109,10 +183,13 @@ class Chart:
 
             score += self.NOTE_SCORE * multiplier
 
+            if self.pos_in_solo(self.notes[i]["position"]):
+                score += self.NOTE_SCORE * 2
+
             if include_note_lengths and self.notes[i]["length"] > 0 and unique_note:
                 score += self.NOTE_SCORE / 2 * multiplier * self.notes[i]["length"] / self.resolution
-                score = int(round(score))
-                #score = int(math.ceil(score))
+                #score = int(round(score))
+                score = int(math.ceil(score))
                # score = score.quantize(decimal.Decimal('1'), rounding=decimal.ROUND_HALF_UP)
             """
             if i == 0:

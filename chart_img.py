@@ -35,10 +35,15 @@ class Chart_Img():
     SOLO_SECTION_COLOR = [0.7, 0.7, 0]
     SOLO_SECTION_ALPHA = 0.4
 
+    SP_ACTIVATION_COLOR = [0, 0, 1]
+    SP_ACTIVATION_ALPHA = 0.4
+
     def __init__(self, song, chart):
         self.song = song
         self.chart = chart
         self.c_y = 0
+
+        chart.add_sp_path()
 
         self.notes = self.chart.notes
 
@@ -49,18 +54,18 @@ class Chart_Img():
 
         self.m2l = self.line_length / (self.song.resolution * 24)
 
-        height = self.calculate_height()
+        self.height = self.calculate_height()
 
-        num_pages = math.floor(height / self.MAX_HEIGHT) + 1
+        self.num_pages = math.floor(self.height / self.MAX_HEIGHT) + 1
 
         self.imss = []
         self.crs = []   
         self.c_cr = 0
 
-        for page in range(num_pages):         
+        for page in range(self.num_pages):         
                      
-            if height < self.MAX_HEIGHT:
-                page_height = height + (110 if page == 0 else 60)
+            if self.height < self.MAX_HEIGHT:
+                page_height = self.height + (110 if page == 0 else 60)
             else:
                 page_height = self.MAX_HEIGHT + (110 if page == 0 else 60)
 
@@ -74,7 +79,7 @@ class Chart_Img():
             self.crs[page].set_source_rgb(0, 0, 0)
             self.crs[page].select_font_face("Calibri", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 
-            height -= self.MAX_HEIGHT
+            self.height -= self.MAX_HEIGHT
 
         self.c_y += 30
 
@@ -107,9 +112,10 @@ class Chart_Img():
         self.draw_chart(False)
         self.draw_chart(True)
 
-        for page in range(num_pages):
-            self.imss[page].write_to_png("assets/Chart Images/" + self.song.name.lower().replace(" ", "") + \
-                (str(page + 1) if num_pages > 1 else "") + ".png")
+        if __name__ == "__main__":
+            for page in range(self.num_pages):
+                self.imss[page].write_to_png("assets/Chart Images/" + self.song.name.lower().replace(" ", "") + \
+                    (str(page + 1) if self.num_pages > 1 else "") + ".png")
 
     def calculate_height(self):
         height = 0
@@ -251,6 +257,10 @@ class Chart_Img():
         sl = 0    
         solo_section_length = 0
 
+        sp_activations = self.chart.sp_path.sp_activations
+        sa = 0    
+        sp_activation_length = 0
+
         c_score = 0
         c_multiplier = 1
 
@@ -365,6 +375,21 @@ class Chart_Img():
                     self.crs[self.c_cr].fill()      
                     self.crs[self.c_cr].set_source_rgba(0.7, 0.7, 0.7, 1)  
 
+                # Draws remaining sp activation length from last measure
+                if sp_activation_length > 0:
+                    self.crs[self.c_cr].set_source_rgba(self.SP_ACTIVATION_COLOR[0], self.SP_ACTIVATION_COLOR[1], 
+                    self.SP_ACTIVATION_COLOR[2], self.SP_ACTIVATION_ALPHA)
+
+                    if sp_activation_length > measure_length * self.m2l:
+                        self.crs[self.c_cr].rectangle(self.c_x, self.c_y, measure_length * self.m2l, 4 * self.notes_offset)
+                        sp_activation_length -= measure_length * self.m2l               
+                    else:
+                        self.crs[self.c_cr].rectangle(self.c_x, self.c_y, sp_phrase_length, 4 * self.notes_offset) 
+                        sp_activation_length = 0
+
+                    self.crs[self.c_cr].fill()      
+                    self.crs[self.c_cr].set_source_rgba(0.7, 0.7, 0.7, 1)  
+
                 # Draws bpms in measure
                 self.crs[self.c_cr].set_source_rgb(0, 0, 0)   
                 self.crs[self.c_cr].set_font_size(9)  
@@ -463,6 +488,37 @@ class Chart_Img():
 
                         if sl == len(solo_sections):
                             break     
+
+                # Draws sp activations in measure 
+                if sa < len(sp_activations):
+                    while sp_activations[sa]["position"] < c_length:  
+                        sp_activation_line_pos = sp_activations[sa]["position"] * self.m2l - sum(self.line_lengths)
+
+                        x = self.MEASURE_OFFSET + sp_activation_line_pos
+
+                        self.crs[self.c_cr].move_to(x, self.c_y)
+
+                        length_pos = x + sp_activations[sa]["length"] * self.m2l
+
+                        measure_pos = self.MEASURE_OFFSET + c_length * self.m2l - sum(self.line_lengths)
+                            
+                        self.crs[self.c_cr].set_source_rgba(self.SP_ACTIVATION_COLOR[0], self.SP_ACTIVATION_COLOR[1], 
+                            self.SP_ACTIVATION_COLOR[2], self.SP_ACTIVATION_ALPHA)
+
+                        if length_pos > measure_pos:             
+                            self.crs[self.c_cr].rectangle(x, self.c_y, measure_pos - x, 4 * self.notes_offset) 
+                            sp_activation_length = length_pos - measure_pos
+                        else:
+                            self.crs[self.c_cr].rectangle(x, self.c_y, length_pos - x, 4 * self.notes_offset) 
+
+                        self.crs[self.c_cr].fill()      
+                        self.crs[self.c_cr].set_source_rgba(0.7, 0.7, 0.7, 1)   
+
+
+                        sa += 1
+
+                        if sa == len(sp_activations):
+                            break     
             else:   
                 # Draws remaining note length from last measure
                 if sustain_notes:
@@ -555,6 +611,10 @@ class Chart_Img():
                             measure_score += self.chart.NOTE_SCORE * 2
                             c_score += self.chart.NOTE_SCORE * 2
 
+                        if self.chart.pos_in_path(self.notes[n]["position"]) :
+                            measure_score += self.chart.NOTE_SCORE * c_multiplier
+                            c_score += self.chart.NOTE_SCORE * c_multiplier
+
                         if self.notes[n]["length"] > 0: 
                             self.crs[self.c_cr].move_to(x, y)                                     
 
@@ -635,8 +695,8 @@ class Chart_Img():
 
 def main():
     app = Application()
-    
-    app.read_chart("assets/Chart Examples/guitarvsbass.chart")
+    #app.read_chart("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/teste/notes.chart")
+    app.read_chart("assets/Chart Examples/batcountry.chart")
 
     Chart_Img(app.song, app.song.charts[0])
 
