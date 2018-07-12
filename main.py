@@ -28,26 +28,89 @@ class Application(tk.Tk):
 
         if self.file_name:
             # print(self.file_name)
-            self.read_chart(self.file_name)
+            self.read_chart_file(self.file_name)
 
-    def read_chart(self, file_name):
+    def remove_beats(self, beat_length, num_beats, offset):
+
+        if offset >= beat_length * num_beats:
+            return
+
+        c_beat = 0
+        beat_change = False
+
+        for i in range(len(self.song_parts)): 
+            if self.song_parts[i].strip('[]') in self.song.DIFFICULTIES:
+                j = self.str_file.index(self.song_parts[i]) + 2
+
+                if i > len(self.song_parts) - 2:
+                    end_index = len(self.str_file) - 1       
+                else:
+                    end_index = self.str_file.index(self.song_parts[i + 1]) - 1
+
+                while j < end_index:
+                   
+                    if " = N " in self.str_file[j]:
+                        note_list = self.str_file[j].split()
+
+                        if (int(note_list[0]) % (beat_length * (num_beats + 1))) + offset >= beat_length:
+                            if not beat_change:
+                                beat_change = True
+                                c_beat += 1
+
+                            self.str_file.remove(self.str_file[j])
+                            end_index -= 1
+                            j -= 1                       
+                        else:
+                            if beat_change:
+                                beat_change = False
+
+                            note =	{
+                                "position": int(note_list[0]),
+                                "number": int(note_list[3]),
+                                "length": int(note_list[4])
+                            }
+
+                            note["position"] -= beat_length * num_beats * c_beat
+
+                            self.str_file.remove(self.str_file[j])
+
+                            str_note = "  " + str(note["position"]) + " = N " + str(note["number"]) + \
+                                " " + str(note["length"])
+
+                            self.str_file.insert(j, str_note)
+
+                            
+
+                    j += 1
+                                        
+                '''
+                elif " = S 2" in self.str_file[j]:
+                elif " = E solo" in c_str_file[j]:
+                    str_solo_sections.append(line)
+                '''
+
+    def read_chart_file(self, file_name):    
         file_chart = open(file_name, "r")
-        str_file = file_chart.read().splitlines()
+        self.str_file = file_chart.read().splitlines()
         file_chart.close()
 
-        song_parts = [line for line in str_file if '[' in line]
+        self.read_chart()
 
-        for i in range(len(song_parts)):          
-            start_index = str_file.index(song_parts[i]) + 2
+    def read_chart(self):
 
-            if i > len(song_parts) - 2:
-                end_index = len(str_file) - 1       
+        self.song_parts = [line for line in self.str_file if '[' in line]
+
+        for i in range(len(self.song_parts)):  
+            start_index = self.str_file.index(self.song_parts[i]) + 2
+
+            if i == len(self.song_parts) - 1:
+                end_index = len(self.str_file) - 1       
             else:
-                end_index = str_file.index(song_parts[i + 1]) - 1
+                end_index = self.str_file.index(self.song_parts[i + 1]) - 1
 
-            str_content = str_file[start_index : end_index]                        
+            str_content = self.str_file[start_index : end_index]                        
                 
-            str_part = song_parts[i].strip('[]')
+            str_part = self.song_parts[i].strip('[]')
 
             if str_part == "Song":
                 song_name = str([line for line in str_content if "Name = " in line])
@@ -60,6 +123,8 @@ class Application(tk.Tk):
                 song_resolution = song_resolution[len("['  Resolution = ") : \
                     len(song_resolution) - 2]
                 self.song = Song(song_name, song_charter, int(song_resolution))
+
+                # self.remove_beats(self.song.resolution, 1, 0)
 
             elif str_part == "SyncTrack":
                 str_time_signatures = [line for line in str_content if " = TS " in line]
@@ -138,6 +203,8 @@ class Application(tk.Tk):
                         }
                         chart.add_solo_section(solo_section)   
 
+                chart.add_sp_path()
+
                 self.song.add_chart(chart)      
 
                 
@@ -148,8 +215,6 @@ class Application(tk.Tk):
         self.chart_box["values"] = [self.song.DIFFICULTIES[chart.difficulty] for chart in self.song.charts]
         self.chart_box.current(0)
 
-        #self.create_chart_image() 
-
         self.show_chart_info()
         self.chart_box.bind("<<ComboboxSelected>>", self.show_chart_info)    
 
@@ -159,10 +224,12 @@ class Application(tk.Tk):
 
     def save_file(self):
         file_name = asksaveasfile(mode='w', defaultextension=".txt",
-            filetypes = (("Text files","*.txt"),("All files","*.*")))
+            filetypes=(('Chart files', '*.chart'),("All files", "*.*")))
         if file_name is None:
             return
         #file_name.write(song_details)
+        for line in self.str_file:
+            file_name.write(line + "\n")
         file_name.close()
 
     def export_sections(self):
@@ -178,7 +245,7 @@ class Application(tk.Tk):
 
     def export_chart(self):
         file_name = asksaveasfile(mode='a', defaultextension=".png", 
-        filetypes = (("PNG files","*.png"),("All files","*.*")))
+        filetypes = (("PNG files","*.png"),("All files","*.*")), initialfile=self.song.name.lower().replace(" ", ""))
         if file_name is None:
             return
 

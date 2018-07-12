@@ -10,26 +10,20 @@ class SP_Path:
         self.sp_note_pos = []
 
         self.sp_bar = 0
-        self.sp_bar_length = self.chart.resolution * 64
+        self.sp_bar_length = self.chart.resolution * 32
+
+        self.num_phrases = []
 
         self.add_sp_notes()
         self.set_basic_sp_path()
 
     def add_sp_notes(self):
-        s = 0
         sp_phrases = self.chart.sp_phrases
     
-        while s < len(sp_phrases):
+        for s in range(len(sp_phrases)):
             self.sp_note_pos.append(self.chart.notes[bisect.bisect_right(
             [note["position"] for note in self.chart.notes], 
-            sp_phrases[s]["position"] + sp_phrases[s]["length"] - 1)]["position"])  
-
-            s += 1
-
-            if s == len(sp_phrases):
-                break     
-            
-        print(str(self.sp_note_pos))
+            sp_phrases[s]["position"] + sp_phrases[s]["length"] - 1)]["position"])    
 
     def can_activate_sp(self):
         return self.sp_bar >= self.sp_bar_length / 2
@@ -38,17 +32,22 @@ class SP_Path:
         self.sp_activations.append(sp_activation)
 
     def set_basic_sp_path(self):
+        if not self.sp_note_pos:
+            return
+
         pos = 0
         song_length = self.chart.notes[len(self.chart.notes) - 1]["position"] \
             + self.chart.notes[len(self.chart.notes) - 1]["length"]
 
+        c_number = 0
+
         while pos < song_length:
             
             if pos >= self.sp_note_pos[0]:
-                self.sp_bar += self.chart.resolution * 16
+                self.sp_bar += self.chart.resolution * 8
+                c_number += 1
                 self.sp_note_pos.remove(self.sp_note_pos[0])
-                if not self.sp_note_pos:
-                    break
+                
 
             if self.can_activate_sp():
                 sp_activation = {
@@ -56,11 +55,14 @@ class SP_Path:
                     "length": self.sp_bar
                 }
                 self.sp_bar = 0
+                self.num_phrases.append(c_number)
+                c_number = 0
                 self.add_sp_activation(sp_activation)
 
             pos += self.chart.resolution
 
-        print(str([sp_activation["position"] for sp_activation in self.sp_activations]))
+            if not self.sp_note_pos:
+                    break
 
 
 class Chart:
@@ -88,6 +90,15 @@ class Chart:
 
     def add_sp_path(self):
         self.sp_path = SP_Path(self) 
+
+    def pos_in_section(self, i, sections, position):
+        while i < len(sections):
+            if sections[i]["position"] + sections[i]["length"] - 1 < position:  
+                i += 1
+            else:
+                return i, sections[i]["position"] <= position
+            
+        return i, False   
 
     def pos_in_phrase(self, position):
         while self.sp < len(self.sp_phrases):
@@ -124,6 +135,7 @@ class Chart:
 
     def add_sp_phrase(self, sp_phrase):
         self.sp_phrases.append(sp_phrase)
+        return
 
     def total_unique_notes(self):
         notes_count = 0
@@ -272,7 +284,7 @@ class Song:
         "HardKeyboard": "Hard Keys", 
         "MediumKeyboard": "Medium Keys", 
         "EasyKeyboard": "Easy Keys",
-        "ExpertDrums": "Exper tDrums",
+        "ExpertDrums": "Expert Drums",
         "HardDrums": "Hard Drums", 
         "MediumDrums": "Medium Drums", 
         "EasyDrums": "Easy Drums"
