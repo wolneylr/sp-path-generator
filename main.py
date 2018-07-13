@@ -5,7 +5,7 @@ from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 
 from util.song import Chart, Song
-#from chart_img import Chart_Img
+# from chart_img import Chart_Img
 
 class Application(tk.Tk):
     def __init__(self):
@@ -218,7 +218,10 @@ class Application(tk.Tk):
         self.show_chart_info()
         self.chart_box.bind("<<ComboboxSelected>>", self.show_chart_info)    
 
+        self.chart_menu.add_command(label="Remove Beats", command=self.remove_beats(self.song.resolution, 2, 0))
+
         self.file_menu.entryconfig(1, state="normal")
+        self.chart_menu.entryconfig(0, state="normal")
         self.export_menu.entryconfig(0, state="normal")
         self.export_menu.entryconfig(1, state="normal")
 
@@ -254,8 +257,6 @@ class Application(tk.Tk):
         chart_img = Chart_Img(self.song, chart)
 
         for page in range(chart_img.num_pages):
-            #chart_img.imss[page].write_to_png("assets/Chart Images/" + self.song.name.lower().replace(" ", "") + \
-             #   (str(page + 1) if self.num_pages > 1 else "") + ".png")
             chart_img.imss[page].write_to_png(file_name.name + (str(page + 1) if chart_img.num_pages > 1 else ""))
         
         file_name.close()
@@ -271,16 +272,19 @@ class Application(tk.Tk):
         self.file_menu.entryconfig(1, state="disabled")
         self.menu_bar.add_cascade(label="File", menu=self.file_menu)
 
-        self.help_menu = tk.Menu(self.menu_bar, tearoff=0)
-        self.help_menu.add_command(label="About", command=self.quit)
-        self.menu_bar.add_cascade(label="Help", menu=self.help_menu)
+        self.chart_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Chart", menu=self.chart_menu)
 
         self.export_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.export_menu.add_command(label="Sections", command=self.export_sections)
-        self.export_menu.add_command(label="Chart", command=self.export_chart)
+        self.export_menu.add_command(label="Chart Image", command=self.export_chart)
         self.export_menu.entryconfig(0, state="disabled")
         self.export_menu.entryconfig(1, state="disabled")
         self.menu_bar.add_cascade(label="Export", menu=self.export_menu)
+
+        self.help_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.help_menu.add_command(label="About", command=self.quit)
+        self.menu_bar.add_cascade(label="Help", menu=self.help_menu)
 
         self.config(menu=self.menu_bar)
 

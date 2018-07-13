@@ -230,6 +230,9 @@ class Chart_Img():
         self.crs[self.c_cr].stroke()
 
     def draw_remaining_section(self, length, color, alpha):
+        if length == 0:
+            return length
+
         self.crs[self.c_cr].set_source_rgba(color[0], color[1], color[2], alpha)
 
         if length > self.measure_length * self.m2l:
@@ -312,12 +315,14 @@ class Chart_Img():
         solo_sections = self.chart.solo_sections
         sl = 0    
         solo_section_length = 0
-
+      
         sp_activations = self.chart.sp_path.sp_activations
         sa = 0    
         sp_activation_length = 0
 
         c_score = 0
+        c_solo_score = 0
+        self.in_solo = False
         c_multiplier = 1
 
         for cr in self.crs:
@@ -535,8 +540,11 @@ class Chart_Img():
                         x = self.MEASURE_OFFSET + note_line_pos
                         y = self.c_y + (2 if self.notes[n]["number"] == 7 else self.notes[n]["number"]) * self.notes_offset 
 
+                        self.chart.sp, pos_in_phrase = self.chart.pos_in_section(self.chart.sp, 
+                        self.chart.sp_phrases, self.notes[n]["position"])
+
                         self.crs[self.c_cr].move_to(x, y)
-                        self.draw_note(x, y, self.notes[n]["number"], self.chart.pos_in_phrase(self.notes[n]["position"]))               
+                        self.draw_note(x, y, self.notes[n]["number"], pos_in_phrase)               
 
                         if c_multiplier < 4:
                             c_multiplier = self.chart.calc_note_multiplier(self.chart.calc_unote_index(self.notes[n]))
@@ -545,11 +553,25 @@ class Chart_Img():
                         measure_score += self.chart.NOTE_SCORE * c_multiplier
                         c_score += self.chart.NOTE_SCORE * c_multiplier
 
-                        if self.chart.pos_in_solo(self.notes[n]["position"]) :
-                            measure_score += self.chart.NOTE_SCORE * 2
-                            c_score += self.chart.NOTE_SCORE * 2
+                        self.chart.sl, pos_in_solo = self.chart.pos_in_section(self.chart.sl, 
+                        self.chart.solo_sections, self.notes[n]["position"])
+                        self.chart.sa, pos_in_path = self.chart.pos_in_section(self.chart.sa, 
+                        self.chart.sp_path.sp_activations, self.notes[n]["position"])
 
-                        if self.chart.pos_in_path(self.notes[n]["position"]) :
+                        if pos_in_solo:
+                            c_solo_score += self.chart.NOTE_SCORE * c_multiplier / 2
+
+                            if not self.in_solo:
+                                self.in_solo = True
+                            
+                            if n + 1 < len(self.notes):
+                                _, pos_in_solo = self.chart.pos_in_section(self.chart.sl, 
+                                self.chart.solo_sections, self.notes[n + 1]["position"])
+
+                                if not pos_in_solo:
+                                    self.in_solo = False                       
+
+                        if pos_in_path:
                             measure_score += self.chart.NOTE_SCORE * c_multiplier
                             c_score += self.chart.NOTE_SCORE * c_multiplier
 
@@ -613,6 +635,10 @@ class Chart_Img():
                         if n == len(self.notes):
                             break     
 
+                if not self.in_solo and c_solo_score > 0:
+                    measure_score += c_solo_score
+                    c_score += c_solo_score
+                    c_solo_score = 0
                 # Draws measure score
                 self.crs[self.c_cr].set_source_rgb(0.5, 0.5, 0.5)  
                 str_measure_score = str(math.floor(measure_score))
@@ -630,6 +656,7 @@ class Chart_Img():
 
         if not draw_notes:
             self.draw_vert_line(0.8, self.c_x)
+
 
 def main():
     app = Application()

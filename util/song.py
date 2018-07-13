@@ -73,6 +73,7 @@ class Chart:
     MEUERRO_SCORE = 159402
     BATCOUNTRY_SCORE_NO_SOLO = 363378
     BATCOUNTRY_SCORE = 390278
+    BATCOUNTRY_SCORE_21_5 = 389850
     SOULLESS4_SCORE = 2079014
     BROKED_AVGMULT = 3.777
 
@@ -99,33 +100,6 @@ class Chart:
                 return i, sections[i]["position"] <= position
             
         return i, False   
-
-    def pos_in_phrase(self, position):
-        while self.sp < len(self.sp_phrases):
-            if self.sp_phrases[self.sp]["position"] + self.sp_phrases[self.sp]["length"] - 1 < position:  
-                self.sp += 1
-            else:
-                return self.sp_phrases[self.sp]["position"] <= position
-            
-        return False   
-
-    def pos_in_solo(self, position):
-        while self.sl < len(self.solo_sections):
-            if self.solo_sections[self.sl]["position"] + self.solo_sections[self.sl]["length"] < position:  
-                self.sl += 1
-            else:
-                return self.solo_sections[self.sl]["position"] <= position
-            
-        return False   
-
-    def pos_in_path(self, position):
-        while self.sa < len(self.sp_path.sp_activations):
-            if self.sp_path.sp_activations[self.sa]["position"] + self.sp_path.sp_activations[self.sa]["length"] < position:  
-                self.sa += 1
-            else:
-                return self.sp_path.sp_activations[self.sa]["position"] <= position
-            
-        return False   
 
     def add_note(self, note):
         self.notes.append(note)
@@ -195,27 +169,26 @@ class Chart:
 
             score += self.NOTE_SCORE * multiplier
 
-            if self.pos_in_solo(self.notes[i]["position"]):
+            self.sl, pos_in_solo = self.pos_in_section(self.sl, self.solo_sections, self.notes[i]["position"])
+            self.sa, pos_in_path = self.pos_in_section(self.sa, self.sp_path.sp_activations, self.notes[i]["position"])
+
+            if pos_in_solo:
                 score += self.NOTE_SCORE * 2
+
+            if pos_in_path:
+                score += self.NOTE_SCORE * multiplier
 
             if include_note_lengths and self.notes[i]["length"] > 0 and unique_note:
                 score += self.NOTE_SCORE / 2 * multiplier * self.notes[i]["length"] / self.resolution
                 #score = int(round(score))
                 score = int(math.ceil(score))
-               # score = score.quantize(decimal.Decimal('1'), rounding=decimal.ROUND_HALF_UP)
-            """
-            if i == 0:
-                print(str(unique_note_index) + " - " + str(score))
-            elif self.notes[i]["position"] > self.notes[i - 1]["position"]:
-                print(str(unique_note_index) + " - " + str(score))  
-            """             
+               # score = score.quantize(decimal.Decimal('1'), rounding=decimal.ROUND_HALF_UP)  
 
+        self.sp = 0
+        self.sl = 0
+        self.sa = 0
         return score
 
-    """
-        Since the song"s length is based on the song file, the average multiplier is calculated using 
-        the chart"s length, not the song.
-    """
     def avg_multiplier(self):
 
         multiplier = 1
