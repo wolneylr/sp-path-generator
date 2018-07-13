@@ -4,8 +4,10 @@ from decimal import Decimal
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 
-from util.song import Chart, Song
-# from chart_img import Chart_Img
+#from .chart_img import Chart_Img
+from util.chart import Chart
+from util.song import Song
+
 
 class Application(tk.Tk):
     def __init__(self):
@@ -74,7 +76,7 @@ class Application(tk.Tk):
 
                             self.str_file.remove(self.str_file[j])
 
-                            str_note = "  " + str(note["position"]) + " = N " + str(note["number"]) + \
+                            str_note = "\t" + str(note["position"]) + " = N " + str(note["number"]) + \
                                 " " + str(note["length"])
 
                             self.str_file.insert(j, str_note)
@@ -88,6 +90,7 @@ class Application(tk.Tk):
                 elif " = E solo" in c_str_file[j]:
                     str_solo_sections.append(line)
                 '''
+        #self.read_chart()
 
     def read_chart_file(self, file_name):    
         file_chart = open(file_name, "r")
@@ -181,6 +184,8 @@ class Application(tk.Tk):
                             "number": int(note_list[3]),
                             "length": int(note_list[4])
                         }
+                        if note["position"] < 0:
+                            print(note["position"])
                         chart.add_note(note)
 
                 for str_sp_phrase in str_sp_phrases:
@@ -205,9 +210,8 @@ class Application(tk.Tk):
 
                 chart.add_sp_path()
 
-                self.song.add_chart(chart)      
-
-                
+                self.song.add_chart(chart)  
+         
         self.name_strvar.set(self.song.name)
         self.res_strvar.set(str(self.song.resolution))
         self.totsections_strvar.set(str(len(self.song.sections)))
@@ -216,9 +220,7 @@ class Application(tk.Tk):
         self.chart_box.current(0)
 
         self.show_chart_info()
-        self.chart_box.bind("<<ComboboxSelected>>", self.show_chart_info)    
-
-        self.chart_menu.add_command(label="Remove Beats", command=self.remove_beats(self.song.resolution, 2, 0))
+        self.chart_box.bind("<<ComboboxSelected>>", self.show_chart_info)   
 
         self.file_menu.entryconfig(1, state="normal")
         self.chart_menu.entryconfig(0, state="normal")
@@ -254,10 +256,10 @@ class Application(tk.Tk):
 
         chart = self.song.charts[self.chart_box.current()]
 
-        chart_img = Chart_Img(self.song, chart)
+        chart_image = Chart_Img(self.song, chart)
 
-        for page in range(chart_img.num_pages):
-            chart_img.imss[page].write_to_png(file_name.name + (str(page + 1) if chart_img.num_pages > 1 else ""))
+        for page in range(chart_image.num_pages):
+            chart_image.imss[page].write_to_png(file_name.name + (str(page + 1) if chart_image.num_pages > 1 else ""))
         
         file_name.close()
 
@@ -273,6 +275,8 @@ class Application(tk.Tk):
         self.menu_bar.add_cascade(label="File", menu=self.file_menu)
 
         self.chart_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.chart_menu.add_command(label="Remove Beats", command=
+        lambda: self.remove_beats(self.song.resolution, 1, 0))
         self.menu_bar.add_cascade(label="Chart", menu=self.chart_menu)
 
         self.export_menu = tk.Menu(self.menu_bar, tearoff=0)

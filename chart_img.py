@@ -45,6 +45,8 @@ class Chart_Img():
 
         self.chart.add_sp_path()
 
+        self.chart.add_solo_end_notes()
+
         self.notes = self.chart.notes
 
         self.chart_length = self.notes[len(self.notes) - 1]["position"] + \
@@ -322,7 +324,6 @@ class Chart_Img():
 
         c_score = 0
         c_solo_score = 0
-        self.in_solo = False
         c_multiplier = 1
 
         for cr in self.crs:
@@ -561,15 +562,10 @@ class Chart_Img():
                         if pos_in_solo:
                             c_solo_score += self.chart.NOTE_SCORE * c_multiplier / 2
 
-                            if not self.in_solo:
-                                self.in_solo = True
-                            
-                            if n + 1 < len(self.notes):
-                                _, pos_in_solo = self.chart.pos_in_section(self.chart.sl, 
-                                self.chart.solo_sections, self.notes[n + 1]["position"])
-
-                                if not pos_in_solo:
-                                    self.in_solo = False                       
+                            if self.notes[n] in self.chart.solo_end_notes:
+                                measure_score += c_solo_score
+                                c_score += c_solo_score
+                                c_solo_score = 0                  
 
                         if pos_in_path:
                             measure_score += self.chart.NOTE_SCORE * c_multiplier
@@ -634,11 +630,7 @@ class Chart_Img():
 
                         if n == len(self.notes):
                             break     
-
-                if not self.in_solo and c_solo_score > 0:
-                    measure_score += c_solo_score
-                    c_score += c_solo_score
-                    c_solo_score = 0
+                    
                 # Draws measure score
                 self.crs[self.c_cr].set_source_rgb(0.5, 0.5, 0.5)  
                 str_measure_score = str(math.floor(measure_score))
@@ -660,8 +652,8 @@ class Chart_Img():
 
 def main():
     app = Application()
-    #app.read_chart("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/teste/notes.chart")
-    app.read_chart_file("assets/Chart Examples/batcountry.chart")
+    app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/Dire Straits - Your Latest Trick (Live)/notes.chart")
+    #app.read_chart_file("assets/Chart Examples/ttfaf.chart")
 
     Chart_Img(app.song, app.song.charts[0])
 
