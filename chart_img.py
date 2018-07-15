@@ -38,26 +38,22 @@ class Chart_Img():
     SP_ACTIVATION_COLOR = [0, 0, 1]
     SP_ACTIVATION_ALPHA = 0.4
 
+    MAX_SCORE_COLOR = [0.8, 0.2, 0.8]
+    MAX_SCORE_ALPHA = 0.4
+
     def __init__(self, song, chart):
         self.song = song
         self.chart = chart
         self.c_y = 0
 
         self.chart.add_sp_path()
-
         self.chart.add_solo_end_notes()
-
         self.notes = self.chart.notes
-
-        self.chart_length = self.notes[len(self.notes) - 1]["position"] + \
-        self.notes[len(self.notes) - 1]["length"]
+        self.chart_length = self.chart.calc_chart_length()
 
         self.line_length = self.WIDTH - self.MEASURE_OFFSET * 2
-
         self.m2l = self.line_length / (self.song.resolution * 24)
-
         self.height = self.calculate_height()
-
         self.num_pages = math.floor(self.height / self.MAX_HEIGHT) + 1
 
         self.imss = []
@@ -73,7 +69,7 @@ class Chart_Img():
 
             self.imss.append(cairo.ImageSurface(cairo.FORMAT_ARGB32, self.WIDTH, page_height))
             self.crs.append(cairo.Context(self.imss[page]))
-
+            # Draw a white rectangle that's the page's size
             self.crs[page].set_source_rgb(1, 1, 1)  
             self.crs[page].rectangle(0, 0, self.WIDTH, page_height)
             self.crs[page].fill()
@@ -96,24 +92,24 @@ class Chart_Img():
         self.crs[0].move_to(self.WIDTH / 2 - width / 2, self.c_y)    
         self.crs[0].show_text(self.song.name)
 
-        self.crs[0].set_font_size(12) 
-        str_path = "Path: " + "-".join([str(num) for num in self.chart.sp_path.num_phrases])
-        (_, _, width, _, _, _) = self.crs[0].text_extents(str_path)
+        if self.chart.sp_phrases:
+            self.crs[0].set_font_size(12) 
+            str_path = "Path: " + "-".join([str(num) for num in self.chart.sp_path.num_phrases])
+            (_, _, width, _, _, _) = self.crs[0].text_extents(str_path)
 
-        if width > self.WIDTH / 3:
-            self.crs[0].move_to(self.WIDTH - self.WIDTH / 3 - self.MEASURE_OFFSET / 4, self.c_y)   
-        else: 
-            self.crs[0].move_to(self.WIDTH - width - self.MEASURE_OFFSET / 4, self.c_y)     
-        
-        self.crs[0].show_text(str_path)
+            if width > self.WIDTH / 3:
+                self.crs[0].move_to(self.WIDTH - self.WIDTH / 3 - self.MEASURE_OFFSET / 4, self.c_y)   
+            else: 
+                self.crs[0].move_to(self.WIDTH - width - self.MEASURE_OFFSET / 4, self.c_y)     
+            
+            self.crs[0].show_text(str_path)
 
         self.c_y += 20 
         (_, _, width, _, _, _) = self.crs[0].text_extents(song.DIFFICULTIES[chart.difficulty])
         self.crs[0].move_to(self.WIDTH / 2 - width / 2, self.c_y)   
         self.crs[0].show_text(song.DIFFICULTIES[chart.difficulty])
 
-        est_score = "Est. Score: " + str(math.floor(self.chart.calculate_score(0, len(self.chart.notes), 
-            self.song.time_signatures, True)))
+        est_score = "Est. Score: " + str(math.floor(self.chart.calculate_score(0, len(self.chart.notes))))
         (_, _, width, _, _, _) = self.crs[0].text_extents(est_score)
         self.crs[0].move_to(self.WIDTH - width - self.MEASURE_OFFSET / 4, self.c_y)   
         self.crs[0].show_text(est_score)
@@ -317,10 +313,15 @@ class Chart_Img():
         solo_sections = self.chart.solo_sections
         sl = 0    
         solo_section_length = 0
-      
-        sp_activations = self.chart.sp_path.sp_activations
+
+        sp_activations = self.chart.sp_path.sp_activations if self.chart.sp_phrases else []
         sa = 0    
         sp_activation_length = 0
+
+        max_scores = self.chart.sp_path.max_score_lengths if self.chart.sp_phrases else []
+        ms = 0    
+        max_score_length = 0
+        draw_max_scores = True
 
         c_score = 0
         c_solo_score = 0
@@ -454,6 +455,10 @@ class Chart_Img():
                 sp_activation_length = self.draw_remaining_section(sp_activation_length, 
                 self.SP_ACTIVATION_COLOR, self.SP_ACTIVATION_ALPHA)
 
+                if draw_max_scores:
+                    max_score_length = self.draw_remaining_section(max_score_length, 
+                    self.MAX_SCORE_COLOR, self.MAX_SCORE_ALPHA)
+
                 # Draws star power phrases in measure 
                 sp, sp_phrase_length = self.draw_section(sp_phrases, sp, sp_phrase_length,
                 self.SP_PHRASE_COLOR, self.SP_PHRASE_ALPHA)
@@ -463,6 +468,10 @@ class Chart_Img():
                 # Draws sp activations in measure 
                 sa, sp_activation_length = self.draw_section(sp_activations, sa, sp_activation_length,
                 self.SP_ACTIVATION_COLOR, self.SP_ACTIVATION_ALPHA)
+
+                if draw_max_scores:
+                    ms, max_score_length = self.draw_section(max_scores, ms, max_score_length,
+                    self.MAX_SCORE_COLOR, self.MAX_SCORE_ALPHA)
             else:   
                 # Draws remaining note length from last measure
                 if sustain_notes:
@@ -556,8 +565,14 @@ class Chart_Img():
 
                         self.chart.sl, pos_in_solo = self.chart.pos_in_section(self.chart.sl, 
                         self.chart.solo_sections, self.notes[n]["position"])
-                        self.chart.sa, pos_in_path = self.chart.pos_in_section(self.chart.sa, 
-                        self.chart.sp_path.sp_activations, self.notes[n]["position"])
+
+                        if self.chart.sp_phrases:
+                            self.chart.sa, pos_in_path = self.chart.pos_in_section(self.chart.sa, 
+                            self.chart.sp_path.sp_activations, self.notes[n]["position"])
+
+                            if pos_in_path:
+                                measure_score += self.chart.NOTE_SCORE * c_multiplier
+                                c_score += self.chart.NOTE_SCORE * c_multiplier
 
                         if pos_in_solo:
                             c_solo_score += self.chart.NOTE_SCORE * c_multiplier / 2
@@ -567,16 +582,13 @@ class Chart_Img():
                                 c_score += c_solo_score
                                 c_solo_score = 0                  
 
-                        if pos_in_path:
-                            measure_score += self.chart.NOTE_SCORE * c_multiplier
-                            c_score += self.chart.NOTE_SCORE * c_multiplier
-
                         if self.notes[n]["length"] > 0: 
                             self.crs[self.c_cr].move_to(x, y)                                     
 
                             length_pos = x + self.notes[n]["length"] * self.m2l                             
                             
                             if length_pos > measure_pos:
+                                note_measure_length = (measure_pos - x) / self.m2l
                                 # Open note
                                 if self.notes[n]["number"] == 7:
                                     self.crs[self.c_cr].set_source_rgba(1, 0, 1, 0.5)
@@ -588,8 +600,6 @@ class Chart_Img():
                                     self.crs[self.c_cr].stroke()
 
                                 if self.chart.is_unique_note(self.notes[n]):     
-                                    note_measure_length = (measure_pos - x) / self.m2l
-
                                     length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * \
                                     note_measure_length / self.song.resolution      
 
@@ -602,8 +612,7 @@ class Chart_Img():
 
                                 self.notes[n]["length"] -= note_measure_length
 
-                                sustain_notes.append(self.notes[n])                           
-                                
+                                sustain_notes.append(self.notes[n])                                                  
                             else:
                                 # Open note
                                 if self.notes[n]["number"] == 7:
@@ -652,10 +661,11 @@ class Chart_Img():
 
 def main():
     app = Application()
-    app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/Dire Straits - Your Latest Trick (Live)/notes.chart")
-    #app.read_chart_file("assets/Chart Examples/ttfaf.chart")
+    #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/Dire Straits - Your Latest Trick (Live)/notes.chart")
+    app.read_chart_file("assets/Chart Examples/ttfaf.chart")
 
     Chart_Img(app.song, app.song.charts[0])
+
 
 
 if __name__ == "__main__":

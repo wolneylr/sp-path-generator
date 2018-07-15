@@ -1,3 +1,4 @@
+import math
 import bisect
 
 class SP_Path:
@@ -6,25 +7,224 @@ class SP_Path:
 
     def __init__(self, chart):
         self.chart = chart
-        self.sp_activations = []
-        self.sp_end_notes = []
+        self.sp_phrases = self.chart.sp_phrases
+        self.num_activations = int(len(self.sp_phrases) / 2)     
 
         self.sp_bar = 0
         self.sp_bar_length = self.chart.resolution * self.SP_BAR_BEATS
 
-        self.num_phrases = []
-
+        self.sp_end_notes = []
         self.add_sp_end_notes()
-        self.set_basic_sp_path()
+
+        self.beat_scores = []
+        self.add_beat_scores()
+
+        self.max_score_lengths = self.calc_largest_scores(self.beat_scores, 
+        int(self.SP_BAR_BEATS / 2), self.num_activations)   
+
+        self.sp_activations = []
+        self.num_phrases = []
+        #self.set_basic_sp_path()
+
+    def add_beat_scores(self): 
+
+            c_length = 0
+        
+            beat_length = self.chart.resolution
+
+            chart_length = self.chart.calc_chart_length()
+
+            c_multiplier = 1
+
+            notes = self.chart.notes
+            n = 0
+            sustain_lengths = []
+
+            beat_score = 0
+
+            while c_length <= chart_length:
+                c_length += beat_length
+
+                beat_score = 0
+
+                if sustain_lengths:
+                    for i in range(len(sustain_lengths)):
+                        if sustain_lengths[i] > beat_length:
+                        
+                            length_score = self.chart.NOTE_SCORE / 2 * c_multiplier
+                            length_score = int(math.ceil(length_score))
+                            # length_score = round(length_score)
+                            # length_score = int(Decimal(length_score).quantize(0, ROUND_HALF_UP))         
+
+                            sustain_lengths[i] -= beat_length       
+
+                        else:    
+                            length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * \
+                                sustain_lengths[i] / beat_length
+                            length_score = int(math.ceil(length_score))
+                            # length_score = round(length_score)
+                            # length_score = int(Decimal(length_score).quantize(0, ROUND_HALF_UP))
+
+                            sustain_lengths[i] = 0   
+
+                        beat_score += length_score 
+                    # Removes notes with empty length
+                    for i in range(len(sustain_lengths)):
+                        if i >= len(sustain_lengths):
+                            break
+
+                        if sustain_lengths[i] == 0:
+                            sustain_lengths.remove(sustain_lengths[i])       
+
+                if n < len(notes): 
+                    while notes[n]["position"] < c_length:    
+
+                        if c_multiplier < 4:
+                            c_multiplier = self.chart.calc_note_multiplier(self.chart.calc_unote_index(notes[n])) 
+
+                        beat_score += self.chart.NOTE_SCORE * c_multiplier  
+
+                        if notes[n]["length"] > 0 and self.chart.is_unique_note(notes[n]):                         
+                            if notes[n]["length"] > beat_length:
+                                length_score = self.chart.NOTE_SCORE / 2 * c_multiplier     
+                                length_score = int(math.ceil(length_score))
+                                # length_score = round(length_score)
+                                # length_score = int(Decimal(length_score).quantize(0, ROUND_HALF_UP))
+
+                                sustain_note_length = notes[n]["length"]
+
+                                sustain_note_length -= beat_length
+
+                                sustain_lengths.append(sustain_note_length)                           
+                                
+                            else:
+                                length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * \
+                                notes[n]["length"] / beat_length
+                                
+                                length_score = int(math.ceil(length_score))
+                                # length_score = round(length_score)
+                                # length_score = int(Decimal(length_score).quantize(0, ROUND_HALF_UP))
+
+                            beat_score += length_score 
+
+                        n += 1
+                        
+                        if n == len(notes):
+                            break
+                            
+                    self.beat_scores.append(beat_score) 
+
+    """
+        Return the index where to insert item x in list a, assuming a is sorted in descending order.
+
+        The return value i is such that all e in a[:i] have e >= x, and all e in
+        a[i:] have e < x.  So if x already appears in the list, a.insert(x) will
+        insert just after the rightmost x already there.
+
+        Optional args lo (default 0) and hi (default len(a)) bound the
+        slice of a to be searched.
+
+        Essentially, the function returns number of elements in a which are >= than x.
+        > a = [8, 6, 5, 4, 2]
+        > reverse_bisect_right(a, 5)
+        3
+        > a[:reverse_bisect_right(a, 5)]
+        [8, 6, 5]
+    """
+    def reverse_bisect_right(self, a, x, lo=0, hi=None):
+        if lo < 0:
+            raise ValueError('lo must be non-negative')
+        if hi is None:
+            hi = len(a)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if x > a[mid]: hi = mid
+            else: lo = mid + 1
+        return lo
+
+    # A modified version of Kadane's algorithm (Dynamic Programming)
+    def calc_largest_scores(self, beat_scores, length, num_scores):
+        overlapping_lengths = False
+
+        prev_seq_score = 0
+
+        for i in range(length):
+            prev_seq_score += beat_scores[i]
+
+        start_i_final = 0
+
+        end_i_final = length - 1
+
+        max_score = {
+            "score": prev_seq_score,
+            "position": start_i_final * self.chart.resolution,
+            "length": (end_i_final - start_i_final + 1) * self.chart.resolution
+        }
+
+        max_scores = [max_score]
+
+        c_score = 0
+
+        for i in range(length, len(beat_scores)):
+            c_score = prev_seq_score + beat_scores[i] - beat_scores[i - length]
+            
+            max_scores_scores = [max_score["score"] for max_score in max_scores]
+
+            score_index = self.reverse_bisect_right(max_scores_scores, c_score)
+
+            end_i_final = i
+            start_i_final = i - length + 1
+
+            c_max_score = {
+                "score": c_score,
+                "position": start_i_final * self.chart.resolution,
+                "length": (end_i_final - start_i_final + 1) * self.chart.resolution
+            }
+
+            insert_length = True
+            
+            # Only insert length if length's starting position is bigger than first activation position
+            if len(self.sp_end_notes) > 1:
+                if (i - length + 1) * self.chart.resolution < self.sp_end_notes[1]["position"]:
+                    insert_length = False
+
+            if not overlapping_lengths and insert_length:
+                for j in range(len(max_scores)):
+                    # Checks if current max score length overlaps with max score length from array
+                    if c_max_score["position"] >= max_scores[j]["position"] and \
+                    c_max_score["position"] < max_scores[j]["position"] + max_scores[j]["length"]:
+                        if j >= score_index:
+                            max_scores.remove(max_scores[j])     
+                        else:
+                            insert_length = False
+                        break                 
+
+            if insert_length:
+                max_scores.insert(score_index, c_max_score)
+
+                if len(max_scores) > num_scores:
+                    max_scores.remove(max_scores[num_scores])
+
+            prev_seq_score = c_score
+
+        # Sorts max score list by position
+        max_scores = sorted(max_scores, key=lambda k: k["position"])
+        
+        for max_score in max_scores:
+            print(str(max_score))
+
+        print("len(max_scores) = " + str(len(max_scores)))
+        print("len(beat_scores) = " + str(len(beat_scores)))
+
+        return max_scores
 
     def add_sp_end_notes(self):
-        sp_phrases = self.chart.sp_phrases
 
         notes_pos = [note["position"] for note in self.chart.notes]
     
-        for s in range(len(sp_phrases)):
+        for s in range(len(self.sp_phrases)):
             self.sp_end_notes.append(self.chart.notes[bisect.bisect_right(
-            notes_pos, sp_phrases[s]["position"] + sp_phrases[s]["length"] - 1)])    
+            notes_pos, self.sp_phrases[s]["position"] + self.sp_phrases[s]["length"] - 1)])    
 
     def can_activate_sp(self):
         return self.sp_bar >= self.sp_bar_length / 2

@@ -29,8 +29,10 @@ class Chart:
         self.sa = 0
 
     def calc_chart_length(self):
-        return self.notes[len(self.notes) - 1]["position"] \
-            + self.notes[len(self.notes) - 1]["length"]
+        position = self.notes[len(self.notes) - 1]["position"]
+        length = self.notes[len(self.notes) - 1]["length"]
+
+        return position + length
 
     def add_sp_path(self):
         if self.sp_phrases:
@@ -105,7 +107,7 @@ class Chart:
         
         return False
 
-    def calculate_score(self, start, end, time_signatures, include_note_lengths):
+    def calculate_score(self, start, end):
         score = 0
         multiplier = 1
         unique_note_index = 0
@@ -125,15 +127,18 @@ class Chart:
             score += self.NOTE_SCORE * multiplier
 
             self.sl, pos_in_solo = self.pos_in_section(self.sl, self.solo_sections, self.notes[i]["position"])
-            self.sa, pos_in_path = self.pos_in_section(self.sa, self.sp_path.sp_activations, self.notes[i]["position"])
+
+            '''
+            if self.sp_phrases:
+                self.sa, pos_in_path = self.pos_in_section(self.sa, self.sp_path.sp_activations, self.notes[i]["position"])
+                if pos_in_path:
+                    score += self.NOTE_SCORE * multiplier
+            '''
 
             if pos_in_solo:
-                score += self.NOTE_SCORE * 2
+                score += self.NOTE_SCORE * 2      
 
-            if pos_in_path:
-                score += self.NOTE_SCORE * multiplier
-
-            if include_note_lengths and self.notes[i]["length"] > 0 and unique_note:
+            if self.notes[i]["length"] > 0 and unique_note:
                 score += self.NOTE_SCORE / 2 * multiplier * self.notes[i]["length"] / self.resolution
                 #score = int(round(score))
                 score = int(math.ceil(score))
