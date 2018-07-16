@@ -166,8 +166,8 @@ class Application(tk.Tk):
                 for str_bpm in str_bpms:
                     bpm_list = str_bpm.split()
                     bpm =	{
-                            "position": int(bpm_list[0]),
-                            "value": math.trunc(int(round(int(bpm_list[3]) / 1000))) 
+                        "position": int(bpm_list[0]),
+                        "value": math.trunc(int(round(int(bpm_list[3]) / 1000))) 
                     }
                     self.song.add_bpm(bpm)   
 
@@ -178,8 +178,8 @@ class Application(tk.Tk):
                     section_list = str_section.split()
                     start_index = str_section.find("section ") + len("section ") 
                     section = {
-                            "position": int(section_list[0]),
-                            "name": str_section[start_index : len(str_section) - 1]
+                        "position": int(section_list[0]),
+                        "name": str_section[start_index : len(str_section) - 1]
                     }
                     self.song.add_section(section)
 
@@ -211,7 +211,8 @@ class Application(tk.Tk):
                     sp_phrase_list = str_sp_phrase.split()
                     sp_phrase =	{
                         "position": int(sp_phrase_list[0]),
-                        "length": int(sp_phrase_list[4])
+                        "length": int(sp_phrase_list[4]),
+                        "value": 0
                     }
                     chart.add_sp_phrase(sp_phrase)   
 
@@ -227,6 +228,7 @@ class Application(tk.Tk):
                         }
                         chart.add_solo_section(solo_section)   
 
+                chart.length = chart.calc_chart_length()
                 self.song.add_chart(chart)  
          
         self.name_strvar.set(self.song.name)

@@ -17,14 +17,79 @@ class SP_Path:
         self.add_sp_end_notes()
 
         self.beat_scores = []
-        self.add_beat_scores()
+        #self.add_beat_scores()
 
-        self.max_score_lengths = self.calc_largest_scores(self.beat_scores, 
-        int(self.SP_BAR_BEATS / 2), self.num_activations)   
+        self.pos_scores = []
+        self.add_pos_scores()
+
+        self.max_score_lengths = self.calc_largest_scores(self.pos_scores, 
+        int(self.sp_bar_length / 2), self.num_activations, 1)   
 
         self.sp_activations = []
         self.num_phrases = []
         #self.set_basic_sp_path()
+
+    def add_pos_scores(self): 
+
+        c_length = 0
+    
+        pos_length = 1
+
+        chart_length = self.chart.length
+
+        c_multiplier = 1
+
+        notes = self.chart.notes
+        n = 0
+        sustain_lengths = []
+
+        pos_score = 0
+
+        while c_length <= chart_length:
+            c_length += pos_length
+
+            pos_score = 0
+
+            if sustain_lengths:
+                for i in range(len(sustain_lengths)):
+                    length_score = self.chart.NOTE_SCORE / 2 * c_multiplier / self.chart.resolution
+
+                    sustain_lengths[i] -= pos_length          
+
+                    pos_score += length_score 
+
+                    if sustain_lengths[i] == 0:
+                        pos_score = int(math.ceil(pos_score))
+                # Removes notes with empty length
+                for i in range(len(sustain_lengths)):
+                    if i >= len(sustain_lengths):
+                        break
+
+                    if sustain_lengths[i] == 0:
+                        sustain_lengths.remove(sustain_lengths[i])       
+
+            if n < len(notes): 
+                while notes[n]["position"] < c_length:    
+
+                    if c_multiplier < 4:
+                        c_multiplier = self.chart.calc_note_multiplier(self.chart.calc_unote_index(notes[n])) 
+
+                    pos_score += self.chart.NOTE_SCORE * c_multiplier  
+
+                    if notes[n]["length"] > 0 and self.chart.is_unique_note(notes[n]):  
+                        length_score = self.chart.NOTE_SCORE / 2 * c_multiplier / self.chart.resolution      
+
+                        pos_score += length_score 
+
+                        if notes[n]["length"] == pos_length:  
+                            pos_score = int(math.ceil(pos_score))                         
+
+                    n += 1
+                    
+                    if n == len(notes):
+                        break
+                        
+                self.pos_scores.append(pos_score) 
 
     def add_beat_scores(self): 
 
@@ -32,7 +97,7 @@ class SP_Path:
         
             beat_length = self.chart.resolution
 
-            chart_length = self.chart.calc_chart_length()
+            chart_length = self.chart.length
 
             c_multiplier = 1
 
@@ -143,13 +208,13 @@ class SP_Path:
         return lo
 
     # A modified version of Kadane's algorithm (Dynamic Programming)
-    def calc_largest_scores(self, beat_scores, length, num_scores):
+    def calc_largest_scores(self, scores, length, num_scores, distance):
         overlapping_lengths = False
 
         prev_seq_score = 0
 
         for i in range(length):
-            prev_seq_score += beat_scores[i]
+            prev_seq_score += scores[i]
 
         start_i_final = 0
 
@@ -157,16 +222,16 @@ class SP_Path:
 
         max_score = {
             "score": prev_seq_score,
-            "position": start_i_final * self.chart.resolution,
-            "length": (end_i_final - start_i_final + 1) * self.chart.resolution
+            "position": start_i_final * distance,
+            "length": (end_i_final - start_i_final + 1) * distance
         }
 
         max_scores = [max_score]
 
         c_score = 0
 
-        for i in range(length, len(beat_scores)):
-            c_score = prev_seq_score + beat_scores[i] - beat_scores[i - length]
+        for i in range(length, len(scores)):
+            c_score = prev_seq_score + scores[i] - scores[i - length]
             
             max_scores_scores = [max_score["score"] for max_score in max_scores]
 
@@ -177,15 +242,15 @@ class SP_Path:
 
             c_max_score = {
                 "score": c_score,
-                "position": start_i_final * self.chart.resolution,
-                "length": (end_i_final - start_i_final + 1) * self.chart.resolution
+                "position": start_i_final * distance,
+                "length": (end_i_final - start_i_final + 1) * distance
             }
 
             insert_length = True
             
             # Only insert length if length's starting position is bigger than first activation position
             if len(self.sp_end_notes) > 1:
-                if (i - length + 1) * self.chart.resolution < self.sp_end_notes[1]["position"]:
+                if (i - length + 1) * distance < self.sp_end_notes[1]["position"]:
                     insert_length = False
 
             if not overlapping_lengths and insert_length:
@@ -214,7 +279,7 @@ class SP_Path:
             print(str(max_score))
 
         print("len(max_scores) = " + str(len(max_scores)))
-        print("len(beat_scores) = " + str(len(beat_scores)))
+        print("len(scores) = " + str(len(scores)))
 
         return max_scores
 
@@ -235,7 +300,7 @@ class SP_Path:
     def set_basic_sp_path(self):
 
         pos = 0
-        chart_length = self.chart.calc_chart_length()
+        chart_length = self.chart.length
 
         c_number = 0
 

@@ -343,8 +343,8 @@ class Chart_Img():
                 if self.song.time_signatures[c_ts + 1]["position"] == self.c_length: 
                     show_ts = True
                     c_ts += 1
-
-            self.measure_length = self.song.resolution * self.song.time_signatures[c_ts]["beats"]             
+                    self.measure_length = self.song.resolution * self.song.time_signatures[c_ts]["beats"]  
+          
             # Go to next line if the line length reaches the max line length
             if (self.c_measure_length + self.measure_length) * self.m2l - self.line_length > self.EPSILON:  
                 self.line_lengths.append(self.c_measure_length * self.m2l)
@@ -477,7 +477,7 @@ class Chart_Img():
                 if sustain_notes:
                     for i in range(len(sustain_notes)):
 
-                        num = sustain_notes[i]["number"]
+                        num = 5 if sustain_notes[i]["number"] == 7 else sustain_notes[i]["number"]
 
                         self.crs[self.c_cr].set_source_rgb(self.NOTE_COLORS[num][0], self.NOTE_COLORS[num][1], \
                             self.NOTE_COLORS[num][2])
@@ -497,7 +497,7 @@ class Chart_Img():
 
                             if self.chart.is_unique_note(sustain_notes[i]):    
                                 length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * self.measure_length / self.song.resolution
-                                length_score = int(math.ceil(length_score))
+                                # length_score = int(math.ceil(length_score))
                                 # length_score = round(length_score)
                                 # length_score = int(Decimal(length_score).quantize(0, ROUND_HALF_UP))
 
@@ -585,12 +585,14 @@ class Chart_Img():
                         if self.notes[n]["length"] > 0: 
                             self.crs[self.c_cr].move_to(x, y)                                     
 
-                            length_pos = x + self.notes[n]["length"] * self.m2l                             
+                            length_pos = x + self.notes[n]["length"] * self.m2l 
+
+                            num = 5 if self.notes[n]["number"] == 7 else self.notes[n]["number"]
                             
                             if length_pos > measure_pos:
                                 note_measure_length = (measure_pos - x) / self.m2l
                                 # Open note
-                                if self.notes[n]["number"] == 7:
+                                if num == 5:
                                     self.crs[self.c_cr].set_source_rgba(1, 0, 1, 0.5)
                                     self.crs[self.c_cr].rectangle(x, self.c_y, measure_pos - x, 4 * self.notes_offset) 
                                     self.crs[self.c_cr].fill()      
@@ -603,7 +605,7 @@ class Chart_Img():
                                     length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * \
                                     note_measure_length / self.song.resolution      
 
-                                    length_score = int(math.ceil(length_score))
+                                    # length_score = int(math.ceil(length_score))
                                     # length_score = round(length_score)
                                     # length_score = int(Decimal(length_score).quantize(0, ROUND_HALF_UP))
 
@@ -615,7 +617,7 @@ class Chart_Img():
                                 sustain_notes.append(self.notes[n])                                                  
                             else:
                                 # Open note
-                                if self.notes[n]["number"] == 7:
+                                if num == 5:
                                     self.crs[self.c_cr].set_source_rgba(1, 0, 1, 0.5)
                                     self.crs[self.c_cr].rectangle(x, self.c_y, length_pos - x, 4 * self.notes_offset) 
                                     self.crs[self.c_cr].fill()
@@ -642,13 +644,15 @@ class Chart_Img():
                     
                 # Draws measure score
                 self.crs[self.c_cr].set_source_rgb(0.5, 0.5, 0.5)  
-                str_measure_score = str(math.floor(measure_score))
+                str_measure_score = str(int(measure_score))
+                #str_measure_score = "{0:.3f}".format(measure_score)
                 (_, _, width, _, _, _) = self.crs[self.c_cr].text_extents(str_measure_score)
                 self.crs[self.c_cr].move_to(measure_pos - width, self.c_y + 5 * self.notes_offset)   
                 self.crs[self.c_cr].show_text(str_measure_score)   
                 # Draws current score
                 self.crs[self.c_cr].set_source_rgb(self.SP_PHRASE_COLOR[0], self.SP_PHRASE_COLOR[1], self.SP_PHRASE_COLOR[2])  
-                str_c_score = str(math.floor(c_score))
+                str_c_score = str(int(c_score))
+                #str_c_score = "{0:.3f}".format(c_score)
                 (_, _, width, _, _, _) = self.crs[self.c_cr].text_extents(str_c_score)
                 self.crs[self.c_cr].move_to(measure_pos - width, self.c_y + 5.75 * self.notes_offset)   
                 self.crs[self.c_cr].show_text(str_c_score)   
@@ -662,7 +666,7 @@ class Chart_Img():
 def main():
     app = Application()
     #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/Dire Straits - Your Latest Trick (Live)/notes.chart")
-    app.read_chart_file("assets/Chart Examples/ttfaf.chart")
+    app.read_chart_file("assets/Chart Examples/batcountry.chart")
 
     Chart_Img(app.song, app.song.charts[0])
 

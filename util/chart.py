@@ -24,6 +24,8 @@ class Chart:
         self.sp_phrases = []
         self.solo_end_notes = []
 
+        self.length = 0
+
         self.sp = 0
         self.sl = 0
         self.sa = 0
@@ -32,7 +34,17 @@ class Chart:
         position = self.notes[len(self.notes) - 1]["position"]
         length = self.notes[len(self.notes) - 1]["length"]
 
-        return position + length
+        max_length = position + length
+
+        for i in range(len(self.notes) - 1):     
+            if self.notes[i]["length"] > 0:
+                position = self.notes[i]["position"]
+                length = self.notes[i]["length"]
+
+                if position + length > max_length:
+                    max_length = position + length 
+
+        return max_length
 
     def add_sp_path(self):
         if self.sp_phrases:
@@ -153,7 +165,7 @@ class Chart:
 
         multiplier = 1
 
-        chart_length = self.calc_chart_length()
+        chart_length = self.length
 
         if chart_length == 0:
             return multiplier
