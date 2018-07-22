@@ -1,5 +1,6 @@
 import math
 import bisect
+from decimal import ROUND_HALF_UP, Decimal
 
 from .sp_path import SP_Path
 
@@ -31,18 +32,31 @@ class Chart:
         self.sa = 0
 
     def calc_chart_length(self):
+        if len(self.notes) == 0:
+            return 0
+
         position = self.notes[len(self.notes) - 1]["position"]
         length = self.notes[len(self.notes) - 1]["length"]
 
         max_length = position + length
 
-        for i in range(len(self.notes) - 1):     
-            if self.notes[i]["length"] > 0:
-                position = self.notes[i]["position"]
-                length = self.notes[i]["length"]
+        note_numbers = []
 
-                if position + length > max_length:
-                    max_length = position + length 
+        for i in range(len(self.notes) - 1, -1, -1): 
+            if self.notes[i]["number"] not in note_numbers:
+                if self.notes[i]["length"] > 0:
+                    position = self.notes[i]["position"]
+                    length = self.notes[i]["length"]
+
+                    if position + length > max_length:
+                        max_length = position + length 
+
+                note_numbers.append(self.notes[i]["number"])
+
+                if len(note_numbers) == 5 and 7 not in note_numbers:
+                    break
+                elif len(note_numbers) == 6:
+                    break
 
         return max_length
 
@@ -152,9 +166,7 @@ class Chart:
 
             if self.notes[i]["length"] > 0 and unique_note:
                 score += self.NOTE_SCORE / 2 * multiplier * self.notes[i]["length"] / self.resolution
-                #score = int(round(score))
-                score = int(math.ceil(score))
-               # score = score.quantize(decimal.Decimal('1'), rounding=decimal.ROUND_HALF_UP)  
+                score = int(Decimal(score).quantize(0, ROUND_HALF_UP))
 
         self.sp = 0
         self.sl = 0

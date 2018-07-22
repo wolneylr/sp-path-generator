@@ -55,10 +55,11 @@ class Application(tk.Tk):
                 num_beat_skips = 0
                 beat_skip = False
 
+            
                 last_note = self.str_file[end_index - 1].split()
 
                 part_length = int(last_note[0]) + \
-                (int(last_note[4]) if str_part in self.song.DIFFICULTIES else 0)
+                (int((last_note[4] if last_note[2] in ['N', 'S'] else 0)) if str_part in self.song.DIFFICULTIES else 0)
 
                 line_list = self.str_file[j].split()
 
@@ -272,13 +273,14 @@ class Application(tk.Tk):
         filetypes = (("PNG files","*.png"),("All files","*.*")), initialfile=self.song.name.lower().replace(" ", ""))
         if file_name is None:
             return
-
+        '''
         chart = self.song.charts[self.chart_box.current()]
-
+        
         chart_image = Chart_Img(self.song, chart)
 
         for page in range(chart_image.num_pages):
             chart_image.imss[page].write_to_png(file_name.name + (str(page + 1) if chart_image.num_pages > 1 else ""))
+        '''
         
         file_name.close()
 
