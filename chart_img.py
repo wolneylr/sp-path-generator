@@ -656,6 +656,7 @@ class Chart_Img():
                             break     
 
                 # Draws current sp bar value
+                '''
                 if self.chart.sp_phrases:
                     self.crs[self.c_cr].set_font_size(9)
                     self.crs[self.c_cr].set_source_rgb(0, 0.4, 1)  
@@ -668,6 +669,7 @@ class Chart_Img():
                     (_, _, width, _, _, _) = self.crs[self.c_cr].text_extents(str_sp_bar_value)
                     self.crs[self.c_cr].move_to(measure_pos - width, self.c_y - 0.35 * self.notes_offset)   
                     self.crs[self.c_cr].show_text(str_sp_bar_value)   
+                '''
                 # Draws measure score
                 self.crs[self.c_cr].set_font_size(11)
                 self.crs[self.c_cr].set_source_rgb(0.5, 0.5, 0.5)  
@@ -692,8 +694,8 @@ class Chart_Img():
 
 def main():
     app = Application()
-    #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/teste/notes.chart")
-    app.read_chart_file("assets/Chart Examples/ttfaf.chart")
+    #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/Friends - The Odd Couple Theme/notes.chart")
+    app.read_chart_file("assets/Chart Examples/batcountry.chart")
 
     Chart_Img(app.song, next((chart for chart in app.song.charts if chart.difficulty == "ExpertSingle"), \
         app.song.charts[0]))
