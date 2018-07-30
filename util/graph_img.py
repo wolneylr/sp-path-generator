@@ -113,23 +113,29 @@ class Graph:
                 yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
             )
         )
-
+        '''
         x_path=[]
         y_path=[]
 
+        index_list = []
+
         for node in path_list:
-            x_path.extend([fig['data'][0]['x'][3 * node], fig['data'][0]['x'][3 * node + 1], None])
-            y_path.extend([fig['data'][0]['y'][3 * node], fig['data'][0]['y'][3 * node + 1], None])
+            index_list.append(list(G.nodes()).index(node))
+
+        for index in index_list:
+            x_path.extend([fig['data'][0]['x'][3 * index], fig['data'][0]['x'][3 * index + 1], None])
+            y_path.extend([fig['data'][0]['y'][3 * index], fig['data'][0]['y'][3 * index + 1], None])
             
-        colored_edges=dict(type='scatter',
-                        mode='line',
-                        line=dict(width=2, color='red'),
-                        x=x_path,
-                        y=y_path)
+        colored_edges = dict(type = 'scatter', 
+                    mode = 'line',
+                        line = dict(width = 2, color = 'red'), 
+                        x = x_path, 
+                        y = y_path)
 
 
-        data = [colored_edges] + fig['data']
+        data = [colored_edges] + list(fig['data'])
         fig = dict(data = data, layout=fig['layout'])
+        '''
 
         py.plot(fig, filename='sp_graph')
 

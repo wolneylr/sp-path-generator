@@ -93,8 +93,13 @@ class Chart_Img():
         self.crs[0].show_text(self.song.name)
 
         if self.chart.sp_phrases:
-            self.crs[0].set_font_size(12) 
-            str_path = "Path: " + "-".join([str(num) for num in self.chart.sp_path.num_phrases])
+            self.crs[0].set_font_size(12)
+            str_numbers = []
+            for num in self.chart.sp_path.num_phrases:
+                str_a = str(num[0])
+                str_b = "(+" + str(num[1]) + ')' if num[1] > 0 else ''
+                str_numbers.append(''.join([str_a, str_b]))
+            str_path = "Path: " + "-".join(str_numbers)
             (_, _, width, _, _, _) = self.crs[0].text_extents(str_path)
 
             if width > self.WIDTH / 3:
@@ -694,11 +699,12 @@ class Chart_Img():
 
 def main():
     app = Application()
-    #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/Friends - The Odd Couple Theme/notes.chart")
-    app.read_chart_file("assets/Chart Examples/batcountry.chart")
+    #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/ \
+    # Regi and Victor Wooten - Vulcan Worlds (Live)/notes.chart")
+    app.read_chart_file("assets/Chart Examples/ttfaf.chart")
 
-    Chart_Img(app.song, next((chart for chart in app.song.charts if chart.difficulty == "ExpertSingle"), \
-        app.song.charts[0]))
+    Chart_Img(app.song, next((chart for chart in app.song.charts \
+    if chart.difficulty == "ExpertSingle"), app.song.charts[0]))
 
 
 

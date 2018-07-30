@@ -259,12 +259,13 @@ class Application(tk.Tk):
 
     def export_sections(self):
         file_name = asksaveasfile(mode='w', defaultextension=".txt", 
-        filetypes = (("Text files","*.txt"),("All files","*.*")))
+        filetypes = (("Text files","*.txt"),("All files","*.*")),
+        initialfile=self.song.name.lower() + "sections")
         if file_name is None:
             return
 
         for section in self.song.sections:
-            file_name.write(section + "\n") 
+            file_name.write(section["name"] + "\n") 
         
         file_name.close()
 

@@ -6,14 +6,11 @@ from decimal import ROUND_HALF_UP, Decimal
 #import pylab as plt
 import matplotlib.pyplot as plt
 import networkx as nx
+from networkx.drawing.nx_agraph import graphviz_layout
 
-from .graph import Graph
-
-#from networkx.drawing.nx_agraph import graphviz_layout
+from .graph_img import Graph
 
 #import pygraphviz as pgv
-
-
 
 class SP_Bar(object):
     def __init__(self, max_length):
@@ -22,11 +19,12 @@ class SP_Bar(object):
 
     def set(self, new_value):
         self.number = max(0, min(self.max_length, new_value))
+        #self.number = new_value
 
     def calc_percentage(self):
         return self.number / self.max_length
 
-    def can_activate(self):
+    def is_sp_ready(self):
         return self.number >= self.max_length / 2
 
 class SP_Path:
@@ -39,14 +37,14 @@ class SP_Path:
 
         self.sp_bar = SP_Bar(self.chart.resolution * self.SP_BAR_BEATS)
 
-        self.add_sp_values()
-        self.total_sp_value = sum([sp_phrase["value"] for sp_phrase in self.sp_phrases])   
+        #self.add_sp_values()
+        #self.total_sp_value = sum([sp_phrase["value"] for sp_phrase in self.sp_phrases])   
 
         self.sp_end_notes = self.calc_sp_end_notes()
 
         self.pos_scores, self.sp_value_notes = self.calc_pos_scores(0, self.chart.length)
 
-        self.max_num_activations = int(self.total_sp_value / (self.sp_bar.max_length / 2))
+        #self.max_num_activations = int(self.total_sp_value / (self.sp_bar.max_length / 2))
 
         '''
         sp_file = open("pos_scores.txt","w") 
@@ -58,8 +56,8 @@ class SP_Path:
         '''
         
         print("sum of pos scores = " + str(sum(self.pos_scores)))
-        print("sum of sp values = " + str(sum([sp_phrase["value"] for sp_phrase in self.sp_phrases])))
-        print("max_num_activations = " + str(self.max_num_activations))
+        #print("sum of sp values = " + str(sum([sp_phrase["value"] for sp_phrase in self.sp_phrases])))
+        #print("max_num_activations = " + str(self.max_num_activations))
         # print("last pos sp value = " + str(self.pos_scores[len(self.pos_scores) - 1]["sp_value"]))
 
         self.max_score_lengths = []#self.calc_largest_scores(int(self.sp_bar.max_length / 2) if \
@@ -74,9 +72,11 @@ class SP_Path:
 
         self.sp_activations = []
         self.num_phrases = []
-        #self.set_basic_sp_path() 
-        self.set_optimal_path()
+        #self.set_instant_path() 
+        self.calc_optimal_path()
         self.visualize_graph("plotly")
+
+        
 
     def add_sp_values(self): 
         notes_pos = [note["position"] for note in self.chart.notes]
@@ -325,17 +325,9 @@ class SP_Path:
 
             sp_end_notes.append(self.chart.notes[sp_end_note_i])    
 
-        return sp_end_notes
+        return sp_end_notes  
 
-    def can_activate_sp(self):
-        return self.sp_bar >= self.sp_bar.max_length / 2
-
-    def add_sp_activation(self, sp_activation):
-        self.sp_activations.append(sp_activation)
-
-    def set_basic_path(self):
-
-
+    def set_instant_path(self):
         pos = 0
         chart_length = self.chart.length
 
@@ -349,7 +341,7 @@ class SP_Path:
                 self.sp_end_notes.remove(self.sp_end_notes[0])
                 
 
-            if self.can_activate_sp():
+            if self.sp_bar.is_sp_ready():
                 sp_activation = {
                     "position": pos,
                     "length": self.sp_bar.number
@@ -357,18 +349,14 @@ class SP_Path:
                 self.sp_bar = 0
                 self.num_phrases.append(c_number)
                 c_number = 0
-                self.add_sp_activation(sp_activation)
+                self.sp_activations.append(sp_activation)
 
             pos += self.chart.resolution
 
             if not self.sp_end_notes:
                     break
 
-    def set_optimal_path(self):
-        '''
-        for note in self.sp_value_notes:
-            print(str(note))
-        '''
+    def calc_optimal_path(self):
 
         print("len(sp_value_notes) = " + str(len(self.sp_value_notes)))
 
@@ -394,39 +382,52 @@ class SP_Path:
             node_list = [source_node]
             start_index = bisect.bisect(sp_value_notes_pos, source_node_pos)
             first_activation = True
-            self.sp_bar.set(0)      
+            self.sp_bar.set(0) 
+
+            sp_end_notes = 0
+            overlapping_end_notes = 0    
+
             for i in range(start_index, len(self.sp_value_notes)):  
                 sp_increase = 0
-
+                
                 if self.sp_value_notes[i]["end_note"]:
                     sp_increase += self.sp_bar.max_length / 4
+                    sp_end_notes += 1
 
                 sp_increase += self.sp_value_notes[i]["length"]
 
                 self.sp_bar.set(self.sp_bar.number + sp_increase)            
 
-                if self.sp_bar.can_activate():  
-                    activation_length = self.sp_bar.number  
+                if self.sp_bar.is_sp_ready():  
+                    activation_length = self.sp_bar.number
+                                            
+                    if first_activation:                       
 
-                    first_pos = self.sp_value_notes[i]["position"] + self.sp_value_notes[i]["length"] \
-                    - (activation_length - self.sp_bar.max_length / 2)
-
-                    if i == len(self.sp_value_notes) - 1:
-                        last_pos = self.chart.length - self.sp_bar.number   
+                        first_pos = self.sp_value_notes[i]["position"] + self.sp_value_notes[i]["length"] \
+                        - (activation_length - self.sp_bar.max_length / 2)
+                        first_activation = False
                     else:
-                        last_pos = self.sp_value_notes[i + 1]["position"] - 1       
 
-                    if first_activation:                                           
-                            first_activation = False
-                    else:
-                        first_pos -= self.sp_bar.number
+                        first_pos = self.sp_value_notes[i]["position"] - self.sp_bar.number
                         last_node = node_list[len(node_list) - 1]                      
 
                         if first_pos < last_node[1]:
                             last_node[1] = first_pos - 1
 
+                    if i == len(self.sp_value_notes) - 1:
+                        last_pos = self.chart.length - self.sp_bar.number   
+                    else:
+                        last_pos = self.sp_value_notes[i + 1]["position"] - 1   
+
+                    '''
+                    sp_note_i = i
+
+                    while self.sp_value_notes[sp_note_i + 1]["position"] <= 
+                    '''
+
                     
-                    activation_list = [first_pos, last_pos, int(activation_length)]
+                    activation_list = [first_pos, last_pos, int(activation_length), \
+                    sp_end_notes, overlapping_end_notes]
                     node_list.append(activation_list)
 
             node_list.remove(source_node)
@@ -486,7 +487,8 @@ class SP_Path:
 
         for node in self.path_node_list:
             if node not in [first_pos_node, last_pos_node]:
-                self.add_sp_activation(self.sp_graph.node[node]["max_score"])   
+                self.sp_activations.append(self.sp_graph.node[node]["max_score"])
+                self.num_phrases.append((node[3], node[4]))
         
 
     def visualize_graph(self, viz):
@@ -508,7 +510,8 @@ class SP_Path:
             nx.write_gexf(G, "sp_graph.gexf")
 
         elif viz == "plotly":
-            pos = self.large_hierarchy_pos(self.sp_graph, self.first_node)
+            pos = self.hierarchy_pos(self.sp_graph, self.first_node)
+            #pos = graphviz_layout(self.sp_graph, prog = 'dot')
             Graph(self.sp_graph, pos, self.path_node_list)
         elif viz == "matplotlib":
             graph_pos = nx.shell_layout(self.sp_graph)
