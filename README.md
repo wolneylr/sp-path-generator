@@ -1,1 +1,1 @@
-SP Path Creator
+SP Path Generator
