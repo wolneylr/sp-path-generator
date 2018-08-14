@@ -31,6 +31,8 @@ class Chart:
         self.sl = 0
         self.sa = 0
 
+        self.has_sp_path = False
+
     def calc_chart_length(self):
         if len(self.notes) == 0:
             return 0
@@ -63,6 +65,7 @@ class Chart:
     def add_sp_path(self):
         if self.sp_phrases:
             self.sp_path = SP_Path(self) 
+            self.has_sp_path = True
 
     def pos_in_section(self, i, sections, position):
         while i < len(sections):

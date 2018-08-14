@@ -1,6 +1,5 @@
 import bisect
 import math
-import random
 from decimal import ROUND_HALF_UP, Decimal
 
 #import pylab as plt
@@ -19,64 +18,39 @@ class SP_Bar(object):
 
     def set(self, new_value):
         self.number = max(0, min(self.max_length, new_value))
-        #self.number = new_value
 
     def calc_percentage(self):
-        return self.number / self.max_length
+        return self.number / self.max_length * 100
 
     def is_sp_ready(self):
         return self.number >= self.max_length / 2
 
 class SP_Path:
 
-    SP_BAR_BEATS = 32
+    SP_BAR_BEATS = 64
+
+    VIZ_GRAPH = False
 
     def __init__(self, chart):
         self.chart = chart
         self.sp_phrases = self.chart.sp_phrases
 
-        self.sp_bar = SP_Bar(self.chart.resolution * self.SP_BAR_BEATS)
+        self.squeeze_length = self.chart.resolution / 16
 
-        #self.add_sp_values()
-        #self.total_sp_value = sum([sp_phrase["value"] for sp_phrase in self.sp_phrases])   
+        self.sp_bar = SP_Bar(self.chart.resolution * self.SP_BAR_BEATS)
 
         self.sp_end_notes = self.calc_sp_end_notes()
 
         self.pos_scores, self.sp_value_notes = self.calc_pos_scores(0, self.chart.length)
-
-        #self.max_num_activations = int(self.total_sp_value / (self.sp_bar.max_length / 2))
-
-        '''
-        sp_file = open("pos_scores.txt","w") 
-
-        for i in range(len(self.pos_scores)):
-            sp_file.write(str(i) + " = " + str(self.pos_scores[i]) + '\n') 
-        
-        sp_file.close() 
-        '''
-        
+                 
         print("sum of pos scores = " + str(sum(self.pos_scores)))
-        #print("sum of sp values = " + str(sum([sp_phrase["value"] for sp_phrase in self.sp_phrases])))
-        #print("max_num_activations = " + str(self.max_num_activations))
-        # print("last pos sp value = " + str(self.pos_scores[len(self.pos_scores) - 1]["sp_value"]))
 
-        self.max_score_lengths = []#self.calc_largest_scores(int(self.sp_bar.max_length / 2) if \
-        #self.chart.length > int(self.sp_bar.max_length / 2) else self.chart.length, 0, len(self.pos_scores)) 
+        self.sp_activations = self.calc_optimal_path()
 
-        '''
-        self.phrase_sums = self.calc_phrase_sums(len(self.sp_phrases))  
-        for phrase_sum in self.phrase_sums:
-            print(str(phrase_sum))
-        print("len(self.phrase_sums) = " + str(len(self.phrase_sums)))
-        '''
+        self.num_phrases = self.add_num_phrases()
 
-        self.sp_activations = []
-        self.num_phrases = []
-        #self.set_instant_path() 
-        self.calc_optimal_path()
-        self.visualize_graph("plotly")
-
-        
+        if self.VIZ_GRAPH:
+            self.visualize_graph("plotly")
 
     def add_sp_values(self): 
         notes_pos = [note["position"] for note in self.chart.notes]
@@ -144,12 +118,14 @@ class SP_Path:
 
                         #pos_score = int(Decimal(pos_score).quantize(0, ROUND_HALF_UP))
                 # Removes notes with empty length
-                for i in range(len(sustain_notes)):
-                    if i >= len(sustain_notes):
-                        break
-
-                    if sustain_notes[i]["length"] == 0:
-                        sustain_notes.remove(sustain_notes[i])       
+                i = 0
+                while i < len(sustain_notes):
+                    
+                    if sustain_notes[i]["length"] == 0:  
+                        sustain_notes.remove(sustain_notes[i])   
+                    else:
+                        i += 1
+                        
 
             if n < len(notes): 
                 while notes[n]["position"] < c_length:    
@@ -198,23 +174,6 @@ class SP_Path:
         self.chart.sp = 0
         return pos_scores, sp_value_notes
 
-    """
-        Return the index where to insert item x in list a, assuming a is sorted in descending order.
-
-        The return value i is such that all e in a[:i] have e >= x, and all e in
-        a[i:] have e < x.  So if x already appears in the list, a.insert(x) will
-        insert just after the rightmost x already there.
-
-        Optional args lo (default 0) and hi (default len(a)) bound the
-        slice of a to be searched.
-
-        Essentially, the function returns number of elements in a which are >= than x.
-        > a = [8, 6, 5, 4, 2]
-        > reverse_bisect_right(a, 5)
-        3
-        > a[:reverse_bisect_right(a, 5)]
-        [8, 6, 5]
-    """
     def reverse_bisect_right(self, a, x, lo=0, hi=None):
         if lo < 0:
             raise ValueError('lo must be non-negative')
@@ -225,92 +184,35 @@ class SP_Path:
             if x > a[mid]: hi = mid
             else: lo = mid + 1
         return lo
-
     # A modified version of Kadane's algorithm (Dynamic Programming)
-    def calc_largest_scores(self, length, start, end):
-        positions = self.pos_scores
+    def calc_largest_score(self, length, start, end):
+        c_score = 0
 
-        num_scores = 1
-
-        overlapping_lengths = False
-
-        prev_seq_score = 0
-
-        n_length = (end - start) if (end - start) < length else length
+        n_length = min(length, self.chart.length - start)
 
         for i in range(start, start + n_length):
-            prev_seq_score += positions[i]
-
-        start_i_final = start
-
-        #end_i_final = n_length - 1
+            c_score += self.pos_scores[i]
 
         max_score = {
-            "score": prev_seq_score,
-            "position": start_i_final,
-            #"length": (end_i_final - start_i_final + 1)
+            "score": c_score,
+            "position": start,
             "length": length
         }
 
-        max_scores = [max_score]
+        if length >= self.chart.length - start:
+            return max_score 
 
-        c_score = 0
+        for i in range(start + n_length, end + n_length):
+            if i > self.chart.length - 1:
+                break
 
-        for i in range(start + length, end):
-            c_score = prev_seq_score + positions[i] - positions[i - length]
-            
-            max_scores_scores = [max_score["score"] for max_score in max_scores]
+            c_score += self.pos_scores[i] - self.pos_scores[i - length]
 
-            score_index = self.reverse_bisect_right(max_scores_scores, c_score)
-
-            #end_i_final = i
-            start_i_final = i - length
-
-            c_max_score = {
-                "score": c_score,
-                "position": start_i_final,
-                #"length": (end_i_final - start_i_final + 1)
-                "length": length
-            }
-
-            insert_length = True
-            
-            # Only insert length if length's starting position is bigger than first activation position
-            if len(self.sp_end_notes) > 1:
-                if (i - length + 1) < self.sp_end_notes[1]["position"]:
-                    insert_length = False
-
-            if not overlapping_lengths and insert_length:
-                for j in range(len(max_scores)):
-                    # Checks if current max score length overlaps with max score length from array
-                    if c_max_score["position"] >= max_scores[j]["position"] and \
-                    c_max_score["position"] < max_scores[j]["position"] + max_scores[j]["length"]:
-                        if j >= score_index:
-                            max_scores.remove(max_scores[j])     
-                        else:
-                            insert_length = False
-                        break                 
-
-            if insert_length:
-                max_scores.insert(score_index, c_max_score)
-
-                if len(max_scores) > num_scores:
-                    max_scores.remove(max_scores[num_scores])
-
-            prev_seq_score = c_score
-        '''
-        # Sorts max score list by position
-        max_scores = sorted(max_scores, key=lambda k: k["position"])
+            if c_score > max_score["score"]:
+                max_score["score"] = c_score
+                max_score["position"] =  i - length + 1
         
-        for max_score in max_scores:
-            print(str(max_score))
-
-        print("len(max_scores) = " + str(len(max_scores)))
-        print("len(scores) = " + str(len(positions)))
-        '''
-        
-
-        return max_scores
+        return max_score
 
     def calc_sp_end_notes(self):
         sp_end_notes = []
@@ -327,7 +229,7 @@ class SP_Path:
 
         return sp_end_notes  
 
-    def set_instant_path(self):
+    def set_beat_path(self):
         pos = 0
         chart_length = self.chart.length
 
@@ -360,81 +262,145 @@ class SP_Path:
 
         print("len(sp_value_notes) = " + str(len(self.sp_value_notes)))
 
+        #notes_pos = [note["position"] for note in self.chart.notes]
         sp_value_notes_pos = [sp["position"] for sp in self.sp_value_notes]
 
         self.sp_graph = nx.DiGraph()
+
         first_pos_node = (0,)
         self.first_node = first_pos_node
         last_pos_node = (self.chart.length,)
+        
         self.sp_graph.add_node(first_pos_node, pos = [0, 0.5])
         self.sp_graph.add_node(last_pos_node, pos = [1, 0.5])
 
         current_nodes = [first_pos_node]
 
+        sp_bar_activation = SP_Bar(self.chart.resolution * self.SP_BAR_BEATS) 
+
         while current_nodes:
-            source_node = list(current_nodes[0])
+            source_list = list(current_nodes[0])
 
             if current_nodes[0] is first_pos_node:
-                source_node_pos = source_node[0]
+                source_list_pos = source_list[0]
             else:
-                source_node_pos = source_node[1] + source_node[2]
+                source_list_pos = source_list[1] + source_list[2]
 
-            node_list = [source_node]
-            start_index = bisect.bisect(sp_value_notes_pos, source_node_pos)
+            child_nodes_list = [source_list]
+
+            new_activation = True
             first_activation = True
-            self.sp_bar.set(0) 
+            sustain_ready = False
 
-            sp_end_notes = 0
-            overlapping_end_notes = 0    
+            self.sp_bar.set(0)   
 
-            for i in range(start_index, len(self.sp_value_notes)):  
-                sp_increase = 0
-                
-                if self.sp_value_notes[i]["end_note"]:
-                    sp_increase += self.sp_bar.max_length / 4
-                    sp_end_notes += 1
+            i = bisect.bisect(sp_value_notes_pos, source_list_pos)
+            j = 0
 
-                sp_increase += self.sp_value_notes[i]["length"]
+            while i < len(self.sp_value_notes):
 
-                self.sp_bar.set(self.sp_bar.number + sp_increase)            
+                if new_activation:
+                    sp_increase = 0
+                    
+                    if self.sp_value_notes[i]["end_note"]:
+                        sp_increase += self.sp_bar.max_length / 4            
+
+                    self.sp_bar.set(self.sp_bar.number + sp_increase)  
+
+                    if self.sp_bar.number + self.sp_value_notes[i]["length"] >= self.sp_bar.max_length / 2 \
+                    and not self.sp_bar.is_sp_ready():
+                        sustain_ready = True
+
+                    self.sp_bar.set(self.sp_bar.number + self.sp_value_notes[i]["length"])   
 
                 if self.sp_bar.is_sp_ready():  
-                    activation_length = self.sp_bar.number
-                                            
-                    if first_activation:                       
+                    activation_length = self.sp_bar.number + self.squeeze_length   
 
-                        first_pos = self.sp_value_notes[i]["position"] + self.sp_value_notes[i]["length"] \
-                        - (activation_length - self.sp_bar.max_length / 2)
+                    sp_bar_activation.set(activation_length) 
+                                                 
+                    if first_activation:                                 
+                        first_pos = self.sp_value_notes[i]["position"]
+
+                        if sustain_ready:
+                            first_pos += self.sp_value_notes[i]["length"] - \
+                            (activation_length - self.sp_bar.max_length / 2)
+                            sustain_ready = False
+
                         first_activation = False
                     else:
-
-                        first_pos = self.sp_value_notes[i]["position"] - self.sp_bar.number
-                        last_node = node_list[len(node_list) - 1]                      
-
-                        if first_pos < last_node[1]:
-                            last_node[1] = first_pos - 1
+                        first_pos = child_nodes_list[len(child_nodes_list) - 1][1] + 1  
+                        #activation_length += self.sp_value_notes[i]["length"]         
 
                     if i == len(self.sp_value_notes) - 1:
-                        last_pos = self.chart.length - self.sp_bar.number   
-                    else:
-                        last_pos = self.sp_value_notes[i + 1]["position"] - 1   
+                        last_pos = self.chart.length - self.sp_bar.number  
+                        i += 1 
+                    else:         
+                        if new_activation:                                  
+                            new_activation = False
 
-                    '''
-                    sp_note_i = i
+                        j = i + 1
 
-                    while self.sp_value_notes[sp_note_i + 1]["position"] <= 
-                    '''
-
+                        while self.sp_value_notes[j]["position"] <= first_pos + activation_length:
+                            if self.sp_value_notes[j]["end_note"]:
+                                sp_increase = self.sp_bar.max_length / 4
+                                sp_bar_number = sp_bar_activation.number
+                                sp_bar_activation.set(sp_bar_activation.number + sp_increase) 
+                                activation_length += sp_bar_activation.number - sp_bar_number
                     
-                    activation_list = [first_pos, last_pos, int(activation_length), \
-                    sp_end_notes, overlapping_end_notes]
-                    node_list.append(activation_list)
+                            activation_length += self.sp_value_notes[j]["length"]
+                            j += 1
 
-            node_list.remove(source_node)
-            source_node = tuple(source_node)
+                            if j == len(self.sp_value_notes):
+                                break
 
-            if node_list:
-                for node_to_add in node_list:
+                        if j == len(self.sp_value_notes):
+                            if first_pos + activation_length > self.chart.length:
+                                activation_length = self.chart.length - first_pos
+
+                            last_pos = self.sp_value_notes[i + 1]["position"] - 1
+                            i += 1 
+                            new_activation = True
+                        else:
+                            last_pos = self.sp_value_notes[j]["position"] - activation_length - 1      
+
+                            if last_pos >= self.sp_value_notes[i + 1]["position"]:
+                                last_pos = self.sp_value_notes[i + 1]["position"] - 1
+                                i += 1
+                                new_activation = True
+                    '''
+                    note_to_add = {
+                        "position": first_pos,
+                        "number": 7,
+                        "length": 0
+                    }
+                        
+                    note_i = bisect.bisect(notes_pos, note_to_add["position"])
+                    self.chart.notes.insert(note_i, note_to_add)
+                    '''
+
+                    activation_list = [
+                        first_pos, 
+                        last_pos, 
+                        int(activation_length), 
+                        self.sp_bar.calc_percentage()
+                    ]
+                    '''
+                    if len(child_nodes_list[len(child_nodes_list) - 1]) > 1:
+                        if activation_list[2] == child_nodes_list[len(child_nodes_list) - 1][2]:
+                            child_nodes_list[len(child_nodes_list) - 1][1] = activation_list[1]
+                        else:
+                            child_nodes_list.append(activation_list)
+                    else:
+                    '''
+                    child_nodes_list.append(activation_list)
+                else:
+                    i += 1                       
+                    
+            child_nodes_list.remove(source_list)
+            source_list = tuple(source_list)
+
+            if child_nodes_list:
+                for node_to_add in child_nodes_list:
                     node_to_add = tuple(node_to_add)
                     nodes_list = list(self.sp_graph.nodes())
 
@@ -443,24 +409,22 @@ class SP_Path:
 
                     if not node_index:
                         current_nodes.append(node_to_add)
-                        self.sp_graph.add_node(node_to_add, \
-                        pos = [random.uniform(0.2, 0.8), random.uniform(0.3, 0.7)])
-                    self.sp_graph.add_edge(source_node, node_to_add)
+                        self.sp_graph.add_node(node_to_add)
+                    self.sp_graph.add_edge(source_list, node_to_add)
             else:
-                self.sp_graph.add_edge(source_node, last_pos_node)
+                self.sp_graph.add_edge(source_list, last_pos_node)
 
             current_nodes.remove(current_nodes[0])
 
         
-        print(nx.info(self.sp_graph))
-       
+        print(nx.info(self.sp_graph))   
 
         for node in self.sp_graph.nodes():
             if node not in [first_pos_node, last_pos_node]:
-                max_score = self.calc_largest_scores(int(node[2]) if \
+                max_score = self.calc_largest_score(int(node[2]) if \
                 self.chart.length > int(node[2]) else self.chart.length, \
                 int(node[0]), int(node[1]))
-                self.sp_graph.node[node]["max_score"] = max_score[0]
+                self.sp_graph.node[node]["max_score"] = max_score
 
 
         for edge in self.sp_graph.edges():
@@ -473,48 +437,74 @@ class SP_Path:
             
         self.path_node_list = nx.algorithms.dag.dag_longest_path(self.sp_graph, weight = "score")  
 
+        self.path_node_list.remove(first_pos_node)
+        self.path_node_list.remove(last_pos_node)
+
         print("path_node_list = " + str(self.path_node_list)) 
-
-        #paths = nx.all_simple_paths(self.sp_graph, source=first_pos_node, target=last_pos_node)
-
         '''
+        paths = nx.all_simple_paths(self.sp_graph, source=first_pos_node, target=last_pos_node)
+
+        num_paths = 0
+        longest_path = []
+
+        print("paths: ") 
         for path in paths:
-            print(path)
-        '''
 
-        #print("len(paths) = " + str(len(list(paths))))
+            if len(path) > len(longest_path):
+                longest_path = path
 
-
-        for node in self.path_node_list:
-            if node not in [first_pos_node, last_pos_node]:
-                self.sp_activations.append(self.sp_graph.node[node]["max_score"])
-                self.num_phrases.append((node[3], node[4]))
+            num_paths += 1
         
 
+        print("len(paths) = " + str(num_paths))
+        print("longest_path = " + str(longest_path))
+        '''
+
+        sp_activations = []
+
+        for node in self.path_node_list:
+            print(str(self.sp_graph.node[node]["max_score"]))
+            sp_activations.append(self.sp_graph.node[node]["max_score"])
+
+        return sp_activations
+
+    def add_num_phrases(self):
+        num_phrases = []
+
+        sp_end_notes_pos = [note["position"] for note in self.sp_end_notes]
+
+        sp_end_notes = 0     
+        overlapping_end_notes = 0
+        sp_end_notes_i = 0
+
+        for i in range(len(self.sp_activations)):
+            if i > 0:
+                sp_end_notes_i += sp_end_notes + overlapping_end_notes
+
+            sp_end_notes = bisect.bisect(sp_end_notes_pos, self.sp_activations[i]["position"])
+            
+            overlapping_end_notes = bisect.bisect(sp_end_notes_pos, self.sp_activations[i]["position"] \
+            + self.sp_activations[i]["length"]) - sp_end_notes
+
+            sp_end_notes -= sp_end_notes_i
+
+            num_phrases.append((sp_end_notes, overlapping_end_notes))
+
+
+        return num_phrases
+        
     def visualize_graph(self, viz):
         if viz == "gephi":
             G = nx.path_graph(len(self.sp_graph.nodes()))    
-            '''
-            for i, node in enumerate(self.sp_graph.nodes(data=True)):
-                G.node[i]["viz"] = {"size": self.sp_graph.degree[node]}
-                G.node[i]["position"] = \
-                {"x": data['pos'][0], \
-                "y": data['pos'][1]}
-                G.node[i]["color"] = \
-                {"r": 0, "g": 0, "b": self.sp_graph.degree[node]}
-                G.node[i]["label"] = self.sp_graph.node[node]
-            '''
-
-            
-
             nx.write_gexf(G, "sp_graph.gexf")
 
         elif viz == "plotly":
             pos = self.hierarchy_pos(self.sp_graph, self.first_node)
             #pos = graphviz_layout(self.sp_graph, prog = 'dot')
             Graph(self.sp_graph, pos, self.path_node_list)
+
         elif viz == "matplotlib":
-            graph_pos = nx.shell_layout(self.sp_graph)
+            graph_pos = nx.spring_layout(self.sp_graph)
 
             nx.draw_networkx_nodes(self.sp_graph, graph_pos, node_size=100, node_color='blue', alpha=0.75)
             nx.draw_networkx_edges(self.sp_graph, graph_pos, width=0.25, alpha=1, edge_color='green')
@@ -524,39 +514,14 @@ class SP_Path:
             nx.draw_networkx_edge_labels(self.sp_graph, graph_pos, edge_labels = edge_labels, \
             font_size=4, font_family='sans-serif')
 
-
             plt.show()
+
         elif viz == "pydot":
             p = nx.drawing.nx_pydot.to_pydot(self.sp_graph)
             p.write_png('sp_graph.png')
-        '''
-        nx.draw(self.sp_graph, with_labels = True)      
-
-        # set defaults
-        self.sp_graph.graph['graph'] = {'rankdir':'TD'}
-        self.sp_graph.graph['node'] = {'shape':'circle'}
-        self.sp_graph.graph['edges'] = {'arrowsize':'4.0'}
-        
-        agraph = nx.drawing.nx_agraph.to_agraph(self.sp_graph)
-        print(agraph)
-        agraph.layout('dot')
-        agraph.draw('graph.png')
-
-        plt.show()
-        '''
-
-        '''
-        pos = nx.spectral_layout(self.sp_graph, scale = 4)
-
-        nx.draw(self.sp_graph, pos, font_size = 8, with_labels = True)
-        plt.show()
-
-        '''
-        #pos = graphviz_layout(self.sp_graph, prog='dot')
 
     def hierarchy_pos(self, G, root, width=1., vert_gap = 0.2, vert_loc = 0, xcenter = 0.5):
         '''If there is a cycle that is reachable from root, then result will not be a hierarchy.
-
         G: the graph
         root: the root node of current branch
         width: horizontal space allocated for this branch - avoids overlap with other branches
@@ -586,46 +551,11 @@ class SP_Path:
             return pos
 
         return h_recur(G, root, width=1., vert_gap = 0.2, vert_loc = 0, xcenter = 0.5)
+    
+    def print_pos_scores(self):
+        sp_file = open("pos_scores.txt","w") 
 
-    # burubum's solution for large trees
-    def large_hierarchy_pos(self, G, root, levels=None, width=1, height=1):
-        '''If there is a cycle that is reachable from root, then this will see infinite recursion.
-        G: the graph
-        root: the root node
-        levels: a dictionary
-                key: level number (starting from 0)
-                value: number of nodes in this level
-        width: horizontal space allocated for drawing
-        height: vertical space allocated for drawing'''
-        TOTAL = "total"
-        CURRENT = "current"
-        def make_levels(levels, node=root, currentLevel=0, parent=None):
-            """Compute the number of nodes for each level
-            """
-            if not currentLevel in levels:
-                levels[currentLevel] = {TOTAL : 0, CURRENT : 0}
-            levels[currentLevel][TOTAL] += 1
-            neighbors = G.neighbors(node)
-            #if parent is not None:
-            #    neighbors.remove(parent)
-            for neighbor in neighbors:
-                levels =  make_levels(levels, neighbor, currentLevel + 1, node)
-            return levels
-
-        def make_pos(pos, node=root, currentLevel=0, parent=None, vert_loc=0):
-            dx = 1/levels[currentLevel][TOTAL]
-            left = dx/2
-            pos[node] = ((left + dx*levels[currentLevel][CURRENT])*width, vert_loc)
-            levels[currentLevel][CURRENT] += 1
-            neighbors = G.neighbors(node)
-            #if parent is not None:
-            #    neighbors.remove(parent)
-            for neighbor in neighbors:
-                pos = make_pos(pos, neighbor, currentLevel + 1, node, vert_loc-vert_gap)
-            return pos
-        if levels is None:
-            levels = make_levels({})
-        else:
-            levels = {l:{TOTAL: levels[l], CURRENT:0} for l in levels}
-        vert_gap = height / (max([l for l in levels])+1)
-        return make_pos({})
+        for i in range(len(self.pos_scores)):
+            sp_file.write(str(i) + " = " + str(self.pos_scores[i]) + '\n') 
+        
+        sp_file.close() 

@@ -60,6 +60,8 @@ class Graph:
             if len(node) > 1:
                 node_info += '<br>' + 'last_pos: ' + str(node[1])
                 node_info += '<br>' + 'activation_length: ' + str(node[2])
+                node_info += '<br>' + 'activation_percentage: ' + str(node[3])
+                node_info += '<br>' + 'max_score: ' + str(G.node[node]["max_score"])
             node_trace_text.append(node_info) 
            
         #print(str(G.nodes()))

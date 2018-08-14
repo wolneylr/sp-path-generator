@@ -41,6 +41,8 @@ class Chart_Img():
     MAX_SCORE_COLOR = [0.8, 0.2, 0.8]
     MAX_SCORE_ALPHA = 0.4
 
+    POS_MODE = True
+
     def __init__(self, song, chart):
         self.song = song
         self.chart = chart
@@ -92,9 +94,10 @@ class Chart_Img():
         self.crs[0].move_to(self.WIDTH / 2 - width / 2, self.c_y)    
         self.crs[0].show_text(self.song.name)
 
-        if self.chart.sp_phrases:
+        if self.chart.sp_phrases and self.chart.has_sp_path:
             self.crs[0].set_font_size(12)
             str_numbers = []
+
             for num in self.chart.sp_path.num_phrases:
                 str_a = str(num[0])
                 str_b = "(+" + str(num[1]) + ')' if num[1] > 0 else ''
@@ -326,14 +329,11 @@ class Chart_Img():
         sl = 0    
         solo_section_length = 0
 
-        sp_activations = self.chart.sp_path.sp_activations if self.chart.sp_phrases else []
+        sp_activations = self.chart.sp_path.sp_activations if self.chart.sp_phrases \
+        and self.chart.has_sp_path else []
+
         sa = 0    
         sp_activation_length = 0
-
-        max_scores = self.chart.sp_path.max_score_lengths if self.chart.sp_phrases else []
-        ms = 0    
-        max_score_length = 0
-        draw_max_scores = True
 
         c_score = 0
         c_solo_score = 0
@@ -397,7 +397,12 @@ class Chart_Img():
                 self.crs[self.c_cr].set_source_rgb(0.8, 0.2, 0.2)    
                 self.crs[self.c_cr].set_font_size(9)
                 self.crs[self.c_cr].move_to(self.c_x, self.c_y - measure_num_offset)
-                self.crs[self.c_cr].show_text(str(measure_num))                            
+                
+                if self.POS_MODE:
+                    self.crs[self.c_cr].show_text(str(self.c_length - self.measure_length))          
+                else:
+                    self.crs[self.c_cr].show_text(str(measure_num))          
+
 
                 # Draws the vertical lines         
                 c_beat = self.song.resolution * self.m2l  
@@ -467,10 +472,6 @@ class Chart_Img():
                 sp_activation_length = self.draw_remaining_section(sp_activation_length, 
                 self.SP_ACTIVATION_COLOR, self.SP_ACTIVATION_ALPHA)
 
-                if draw_max_scores:
-                    max_score_length = self.draw_remaining_section(max_score_length, 
-                    self.MAX_SCORE_COLOR, self.MAX_SCORE_ALPHA)
-
                 # Draws star power phrases in measure 
                 sp, sp_phrase_length = self.draw_section(sp_phrases, sp, sp_phrase_length,
                 self.SP_PHRASE_COLOR, self.SP_PHRASE_ALPHA)
@@ -480,10 +481,6 @@ class Chart_Img():
                 # Draws sp activations in measure 
                 sa, sp_activation_length = self.draw_section(sp_activations, sa, sp_activation_length,
                 self.SP_ACTIVATION_COLOR, self.SP_ACTIVATION_ALPHA)
-
-                if draw_max_scores:
-                    ms, max_score_length = self.draw_section(max_scores, ms, max_score_length,
-                    self.MAX_SCORE_COLOR, self.MAX_SCORE_ALPHA)
             else:   
                 # Draws remaining note length from last measure
                 if sustain_notes:
@@ -580,7 +577,7 @@ class Chart_Img():
                         self.chart.sl, pos_in_solo = self.chart.pos_in_section(self.chart.sl, 
                         self.chart.solo_sections, self.notes[n]["position"])
 
-                        if self.chart.sp_phrases:
+                        if self.chart.sp_phrases and self.chart.has_sp_path:
                             self.chart.sa, pos_in_path = self.chart.pos_in_section(self.chart.sa, 
                             self.chart.sp_path.sp_activations, self.notes[n]["position"])
 
@@ -669,7 +666,6 @@ class Chart_Img():
                     else len(self.chart.sp_path.pos_scores) - 1
                     sp_value = self.chart.sp_path.pos_scores[pos_index]["sp_value"]
                     sp_value = int((sp_value / self.chart.resolution) * 100 / 32)
-
                     str_sp_bar_value = str(sp_value)
                     (_, _, width, _, _, _) = self.crs[self.c_cr].text_extents(str_sp_bar_value)
                     self.crs[self.c_cr].move_to(measure_pos - width, self.c_y - 0.35 * self.notes_offset)   
@@ -699,9 +695,8 @@ class Chart_Img():
 
 def main():
     app = Application()
-    #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/ \
-    # Regi and Victor Wooten - Vulcan Worlds (Live)/notes.chart")
-    app.read_chart_file("assets/Chart Examples/ttfaf.chart")
+    #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/housethegrate - Clockwork/notes.chart")
+    app.read_chart_file("assets/Chart Examples/soulless4.chart")
 
     Chart_Img(app.song, next((chart for chart in app.song.charts \
     if chart.difficulty == "ExpertSingle"), app.song.charts[0]))
