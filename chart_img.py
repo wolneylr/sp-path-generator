@@ -696,7 +696,7 @@ class Chart_Img():
 def main():
     app = Application()
     #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/housethegrate - Clockwork/notes.chart")
-    app.read_chart_file("assets/Chart Examples/soulless4.chart")
+    app.read_chart_file("assets/Chart Examples/soulless5.chart")
 
     Chart_Img(app.song, next((chart for chart in app.song.charts \
     if chart.difficulty == "ExpertSingle"), app.song.charts[0]))

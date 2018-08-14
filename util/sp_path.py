@@ -27,7 +27,7 @@ class SP_Bar(object):
 
 class SP_Path:
 
-    SP_BAR_BEATS = 64
+    SP_BAR_BEATS = 32
 
     VIZ_GRAPH = False
 
