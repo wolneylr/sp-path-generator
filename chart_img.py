@@ -3,7 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 import cairocffi as cairo
 
-from main import Application
+#from main import Application
 
 class Chart_Img():
 
@@ -13,6 +13,7 @@ class Chart_Img():
     EPSILON = 0.001
     NOTE_RADIUS = 3
     STAR_SCALE = 30
+    MAX_BEATS = 24
     MAX_LINES = 200
     MAX_HEIGHT = MEASURE_HEIGHT * MAX_LINES
 
@@ -20,14 +21,8 @@ class Chart_Img():
         (125, 75), (200, 85), (150, 125), (160, 190),
         (100, 150), (40, 190), (50, 125), (0, 85))
 
-    NOTE_COLORS = [
-        [0, 0.9, 0], 
-        [1, 0, 0], 
-        [1, 1, 0],
-        [0, 0.3, 1],
-        [1, 0.7, 0],
-        [1, 0, 1]
-    ]
+    NOTE_COLORS = [[0, 0.9, 0], [1, 0, 0], [1, 1, 0],
+        [0, 0.3, 1], [1, 0.7, 0], [1, 0, 1]]
 
     SP_PHRASE_COLOR = [0, 0.7, 0]
     SP_PHRASE_ALPHA = 0.4
@@ -38,36 +33,36 @@ class Chart_Img():
     SP_ACTIVATION_COLOR = [0, 0, 1]
     SP_ACTIVATION_ALPHA = 0.4
 
-    MAX_SCORE_COLOR = [0.8, 0.2, 0.8]
-    MAX_SCORE_ALPHA = 0.4
-
     POS_MODE = True
+
+    SP_PATH = True
 
     def __init__(self, song, chart):
         self.song = song
         self.chart = chart
         self.c_y = 0
 
-        self.chart.add_sp_path()
+        if self.SP_PATH:
+            self.chart.add_sp_path()
+
         self.chart.add_solo_end_notes()
         self.notes = self.chart.notes
         self.chart_length = self.chart.calc_chart_length()
 
-        self.line_length = self.WIDTH - self.MEASURE_OFFSET * 2
-        self.m2l = self.line_length / (self.song.resolution * 24)
+        self.max_line_length = self.WIDTH - self.MEASURE_OFFSET * 2
+        self.m2l = self.max_line_length / (self.song.resolution * self.MAX_BEATS)
+        
         self.height = self.calculate_height()
         self.num_pages = math.floor(self.height / self.MAX_HEIGHT) + 1
 
         self.imss = []
         self.crs = []   
-        self.c_cr = 0
+        self.cr_i = 0
 
         for page in range(self.num_pages):         
-                     
-            if self.height < self.MAX_HEIGHT:
-                page_height = self.height + (110 if page == 0 else 60)
-            else:
-                page_height = self.MAX_HEIGHT + (110 if page == 0 else 60)
+
+            page_height = (self.height if self.height < self.MAX_HEIGHT else self.MAX_HEIGHT) + \
+                (110 if page == 0 else 60)
 
             self.imss.append(cairo.ImageSurface(cairo.FORMAT_ARGB32, self.WIDTH, page_height))
             self.crs.append(cairo.Context(self.imss[page]))
@@ -102,13 +97,12 @@ class Chart_Img():
                 str_a = str(num[0])
                 str_b = "(+" + str(num[1]) + ')' if num[1] > 0 else ''
                 str_numbers.append(''.join([str_a, str_b]))
+
             str_path = "Path: " + "-".join(str_numbers)
             (_, _, width, _, _, _) = self.crs[0].text_extents(str_path)
 
-            if width > self.WIDTH / 3:
-                self.crs[0].move_to(self.WIDTH - self.WIDTH / 3 - self.MEASURE_OFFSET / 4, self.c_y)   
-            else: 
-                self.crs[0].move_to(self.WIDTH - width - self.MEASURE_OFFSET / 4, self.c_y)     
+            self.crs[0].move_to(self.WIDTH - (self.WIDTH / 3 if width > self.WIDTH / 3 else width) \
+                - self.MEASURE_OFFSET / 4, self.c_y)    
             
             self.crs[0].show_text(str_path)
 
@@ -122,7 +116,6 @@ class Chart_Img():
         (_, _, width, _, _, _) = self.crs[0].text_extents(song.DIFFICULTIES[chart.difficulty])
         self.crs[0].move_to(self.WIDTH / 2 - width / 2, self.c_y)   
         self.crs[0].show_text(song.DIFFICULTIES[chart.difficulty])
-
         
         est_score = "Est. Score: " + str(math.floor(self.chart.calculate_score(0, len(self.chart.notes))))
         (_, _, width, _, _, _) = self.crs[0].text_extents(est_score)
@@ -155,7 +148,7 @@ class Chart_Img():
 
             measure_length = self.song.resolution * self.song.time_signatures[c_ts]["beats"] 
 
-            if (self.c_measure_length + measure_length) * self.m2l > self.line_length:
+            if (self.c_measure_length + measure_length) * self.m2l > self.max_line_length:
                 self.c_x = self.MEASURE_OFFSET
                 height += self.MEASURE_HEIGHT
                 self.c_measure_length = 0
@@ -171,92 +164,86 @@ class Chart_Img():
         if color == 7:
             color = 5
 
-        self.crs[self.c_cr].set_source_rgb(0.7, 0.7, 0.7)
+        self.crs[self.cr_i].set_source_rgb(0.7, 0.7, 0.7)
 
         if star:
             # Open note
             if color == 5:
                 for i in range(10):
-                    self.crs[self.c_cr].line_to(self.STAR_POINTS[i][0] / (self.STAR_SCALE + 5) + x - self.NOTE_RADIUS, 
+                    self.crs[self.cr_i].line_to(self.STAR_POINTS[i][0] / (self.STAR_SCALE + 5) + x - self.NOTE_RADIUS, 
                     self.STAR_POINTS[i][1] / (self.STAR_SCALE + 5) + y - self.NOTE_RADIUS - 2 * self.notes_offset)   
-                self.crs[self.c_cr].stroke_preserve()    
-                self.crs[self.c_cr].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], 
+                self.crs[self.cr_i].stroke_preserve()    
+                self.crs[self.cr_i].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], 
                 self.NOTE_COLORS[color][2])
-                self.crs[self.c_cr].fill()
+                self.crs[self.cr_i].fill()
 
-                self.crs[self.c_cr].set_source_rgb(0.7, 0.7, 0.7)
+                self.crs[self.cr_i].set_source_rgb(0.7, 0.7, 0.7)
                 for i in range(10):
-                    self.crs[self.c_cr].line_to(self.STAR_POINTS[i][0] / (self.STAR_SCALE + 5) + x - self.NOTE_RADIUS, 
+                    self.crs[self.cr_i].line_to(self.STAR_POINTS[i][0] / (self.STAR_SCALE + 5) + x - self.NOTE_RADIUS, 
                     self.STAR_POINTS[i][1] / (self.STAR_SCALE + 5) + y - self.NOTE_RADIUS + 2 * self.notes_offset)  
-                self.crs[self.c_cr].stroke_preserve()      
-                self.crs[self.c_cr].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], 
+                self.crs[self.cr_i].stroke_preserve()      
+                self.crs[self.cr_i].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], 
                 self.NOTE_COLORS[color][2])
-                self.crs[self.c_cr].fill()
+                self.crs[self.cr_i].fill()
 
-                self.crs[self.c_cr].rectangle(x - (self.NOTE_RADIUS - self.NOTE_RADIUS / 3), 
+                self.crs[self.cr_i].rectangle(x - (self.NOTE_RADIUS - self.NOTE_RADIUS / 3), 
                 y - 2 * self.notes_offset, self.NOTE_RADIUS + self.NOTE_RADIUS / 3, 4 * self.notes_offset)
             else:
                 for i in range(10):
-                    self.crs[self.c_cr].line_to(self.STAR_POINTS[i][0] / self.STAR_SCALE + x - self.NOTE_RADIUS, 
+                    self.crs[self.cr_i].line_to(self.STAR_POINTS[i][0] / self.STAR_SCALE + x - self.NOTE_RADIUS, 
                     self.STAR_POINTS[i][1] / self.STAR_SCALE + y - self.NOTE_RADIUS)   
-                self.crs[self.c_cr].stroke_preserve()      
-                self.crs[self.c_cr].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], 
+                self.crs[self.cr_i].stroke_preserve()      
+                self.crs[self.cr_i].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], 
                 self.NOTE_COLORS[color][2])
         else:
             # Open note
             if color == 5:          
-                self.crs[self.c_cr].arc(x, y - 2 * self.notes_offset, 
+                self.crs[self.cr_i].arc(x, y - 2 * self.notes_offset, 
                 self.NOTE_RADIUS - self.NOTE_RADIUS / 3, 0, 2 * math.pi)
-                self.crs[self.c_cr].stroke_preserve()
-                self.crs[self.c_cr].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1],
+                self.crs[self.cr_i].stroke_preserve()
+                self.crs[self.cr_i].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1],
                  self.NOTE_COLORS[color][2])
-                self.crs[self.c_cr].fill()
+                self.crs[self.cr_i].fill()
 
-                self.crs[self.c_cr].set_source_rgb(0.7, 0.7, 0.7)
-                self.crs[self.c_cr].arc(x, y + 2 * self.notes_offset, 
+                self.crs[self.cr_i].set_source_rgb(0.7, 0.7, 0.7)
+                self.crs[self.cr_i].arc(x, y + 2 * self.notes_offset, 
                 self.NOTE_RADIUS - self.NOTE_RADIUS / 3, 0, 2 * math.pi)
-                self.crs[self.c_cr].stroke_preserve()
-                self.crs[self.c_cr].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], 
+                self.crs[self.cr_i].stroke_preserve()
+                self.crs[self.cr_i].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], 
                 self.NOTE_COLORS[color][2])
-                self.crs[self.c_cr].fill()
+                self.crs[self.cr_i].fill()
                 
-                self.crs[self.c_cr].rectangle(x - (self.NOTE_RADIUS - self.NOTE_RADIUS / 3), 
+                self.crs[self.cr_i].rectangle(x - (self.NOTE_RADIUS - self.NOTE_RADIUS / 3), 
                 y - 2 * self.notes_offset, self.NOTE_RADIUS + self.NOTE_RADIUS / 3, 4 * self.notes_offset)
             else:
-                self.crs[self.c_cr].arc(x, y, self.NOTE_RADIUS, 0, 2 * math.pi)
-                self.crs[self.c_cr].stroke_preserve()      
-                self.crs[self.c_cr].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], 
+                self.crs[self.cr_i].arc(x, y, self.NOTE_RADIUS, 0, 2 * math.pi)
+                self.crs[self.cr_i].stroke_preserve()      
+                self.crs[self.cr_i].set_source_rgb(self.NOTE_COLORS[color][0], self.NOTE_COLORS[color][1], 
                 self.NOTE_COLORS[color][2])
-                '''
-                self.crs[self.c_cr].fill()
-                self.crs[self.c_cr].arc(x, y, self.NOTE_RADIUS / 3, 0, 2 * math.pi)
-                self.crs[self.c_cr].stroke_preserve()      
-                self.crs[self.c_cr].set_source_rgb(0.8, 0.8, 0.8)
-                '''
 
-        self.crs[self.c_cr].fill()
+        self.crs[self.cr_i].fill()
 
     def draw_vert_line(self, color, x):
-        self.crs[self.c_cr].set_source_rgb(color, color, color)
-        self.crs[self.c_cr].move_to(x, self.c_y)
-        self.crs[self.c_cr].line_to(x, self.c_y + self.notes_offset * 4) 
-        self.crs[self.c_cr].stroke()
+        self.crs[self.cr_i].set_source_rgb(color, color, color)
+        self.crs[self.cr_i].move_to(x, self.c_y)
+        self.crs[self.cr_i].line_to(x, self.c_y + self.notes_offset * 4) 
+        self.crs[self.cr_i].stroke()
 
     def draw_remaining_section(self, length, color, alpha):
         if length == 0:
             return length
 
-        self.crs[self.c_cr].set_source_rgba(color[0], color[1], color[2], alpha)
+        self.crs[self.cr_i].set_source_rgba(color[0], color[1], color[2], alpha)
 
         if length > self.measure_length * self.m2l:
-            self.crs[self.c_cr].rectangle(self.c_x, self.c_y, self.measure_length * self.m2l, 4 * self.notes_offset)
+            self.crs[self.cr_i].rectangle(self.c_x, self.c_y, self.measure_length * self.m2l, 4 * self.notes_offset)
             length -= self.measure_length * self.m2l               
         else:
-            self.crs[self.c_cr].rectangle(self.c_x, self.c_y, length, 4 * self.notes_offset) 
+            self.crs[self.cr_i].rectangle(self.c_x, self.c_y, length, 4 * self.notes_offset) 
             length = 0
 
-        self.crs[self.c_cr].fill()      
-        self.crs[self.c_cr].set_source_rgba(0.7, 0.7, 0.7, 1)  
+        self.crs[self.cr_i].fill()      
+        self.crs[self.cr_i].set_source_rgba(0.7, 0.7, 0.7, 1)  
 
         return length
 
@@ -267,22 +254,22 @@ class Chart_Img():
 
                 x = self.MEASURE_OFFSET + line_pos
 
-                self.crs[self.c_cr].move_to(x, self.c_y)
+                self.crs[self.cr_i].move_to(x, self.c_y)
 
                 length_pos = x + sections[i]["length"] * self.m2l
 
                 measure_pos = self.MEASURE_OFFSET + self.c_length * self.m2l - sum(self.line_lengths)
                     
-                self.crs[self.c_cr].set_source_rgba(color[0], color[1], color[2], alpha)
+                self.crs[self.cr_i].set_source_rgba(color[0], color[1], color[2], alpha)
 
                 if length_pos > measure_pos:             
-                    self.crs[self.c_cr].rectangle(x, self.c_y, measure_pos - x, 4 * self.notes_offset) 
+                    self.crs[self.cr_i].rectangle(x, self.c_y, measure_pos - x, 4 * self.notes_offset) 
                     length = length_pos - measure_pos
                 else:
-                    self.crs[self.c_cr].rectangle(x, self.c_y, length_pos - x, 4 * self.notes_offset)            
+                    self.crs[self.cr_i].rectangle(x, self.c_y, length_pos - x, 4 * self.notes_offset)            
 
-                self.crs[self.c_cr].fill()      
-                self.crs[self.c_cr].set_source_rgba(0.7, 0.7, 0.7, 1)   
+                self.crs[self.cr_i].fill()      
+                self.crs[self.cr_i].set_source_rgba(0.7, 0.7, 0.7, 1)   
 
 
                 i += 1
@@ -307,7 +294,7 @@ class Chart_Img():
         measure_num = 0
         self.line_num = 0
 
-        self.line_length = self.WIDTH - self.MEASURE_OFFSET * 2
+        self.max_line_length = self.WIDTH - self.MEASURE_OFFSET * 2
         self.line_lengths = []
 
         show_ts = False
@@ -331,7 +318,6 @@ class Chart_Img():
 
         sp_activations = self.chart.sp_path.sp_activations if self.chart.sp_phrases \
         and self.chart.has_sp_path else []
-
         sa = 0    
         sp_activation_length = 0
 
@@ -342,7 +328,7 @@ class Chart_Img():
         for cr in self.crs:
             cr.set_line_width(2)
 
-        self.c_cr = 0
+        self.cr_i = 0
         self.c_y = 110
 
         while self.c_length <= self.chart_length:
@@ -355,11 +341,14 @@ class Chart_Img():
                 if self.song.time_signatures[c_ts + 1]["position"] == self.c_length: 
                     show_ts = True
                     c_ts += 1
-                    self.measure_length = self.song.resolution * self.song.time_signatures[c_ts]["beats"]  
+                    self.measure_length = self.song.resolution * self.song.time_signatures[c_ts]["beats"]
+
           
             # Go to next line if the line length reaches the max line length
-            if (self.c_measure_length + self.measure_length) * self.m2l - self.line_length > self.EPSILON:  
+            if (self.c_measure_length + self.measure_length) * self.m2l - self.max_line_length > self.EPSILON:  
                 self.line_lengths.append(self.c_measure_length * self.m2l)
+
+                # Split measure if measure length is bigger than line length
                 
                 if not draw_notes:
                     self.draw_vert_line(0.7, self.c_x)
@@ -372,7 +361,7 @@ class Chart_Img():
 
                 # Go to next page if the number of lines reaches the max number of lines per page
                 if self.line_num % self.MAX_LINES == 0:
-                    self.c_cr += 1
+                    self.cr_i += 1
                     self.c_y = 60
 
             self.c_length += self.measure_length
@@ -381,64 +370,57 @@ class Chart_Img():
             if not draw_notes: 
                 # Draws the time signature if it changes
                 if show_ts:
-                    self.crs[self.c_cr].select_font_face("Arial Black", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-                    self.crs[self.c_cr].set_source_rgb(0.8, 0.8, 0.8)     
-                    self.crs[self.c_cr].set_font_size(24)
+                    self.crs[self.cr_i].select_font_face("Arial Black", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+                    self.crs[self.cr_i].set_source_rgb(0.8, 0.8, 0.8)     
+                    self.crs[self.cr_i].set_font_size(24)
 
-                    self.crs[self.c_cr].move_to(self.c_x, self.c_y + self.notes_offset * 2)
-                    self.crs[self.c_cr].show_text(str(self.song.time_signatures[c_ts]["beats"]))
-                    self.crs[self.c_cr].move_to(self.c_x, self.c_y + self.notes_offset * 3.2)
-                    self.crs[self.c_cr].show_text("4")
+                    self.crs[self.cr_i].move_to(self.c_x, self.c_y + self.notes_offset * 2)
+                    self.crs[self.cr_i].show_text(str(self.song.time_signatures[c_ts]["beats"]))
+                    self.crs[self.cr_i].move_to(self.c_x, self.c_y + self.notes_offset * 3.2)
+                    self.crs[self.cr_i].show_text("4")
 
                     show_ts = False
 
                 # Draws the measure number
-                self.crs[self.c_cr].select_font_face("Calibri", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-                self.crs[self.c_cr].set_source_rgb(0.8, 0.2, 0.2)    
-                self.crs[self.c_cr].set_font_size(9)
-                self.crs[self.c_cr].move_to(self.c_x, self.c_y - measure_num_offset)
-                
-                if self.POS_MODE:
-                    self.crs[self.c_cr].show_text(str(self.c_length - self.measure_length))          
-                else:
-                    self.crs[self.c_cr].show_text(str(measure_num))          
+                self.crs[self.cr_i].select_font_face("Calibri", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+                self.crs[self.cr_i].set_source_rgb(0.8, 0.2, 0.2)    
+                self.crs[self.cr_i].set_font_size(9)
+                self.crs[self.cr_i].move_to(self.c_x, self.c_y - measure_num_offset)
+
+                self.crs[self.cr_i].show_text(str(self.c_length - self.measure_length) \
+                    if self.POS_MODE else str(measure_num))                
 
 
                 # Draws the vertical lines         
                 c_beat = self.song.resolution * self.m2l  
                 for i in range(self.song.time_signatures[c_ts]["beats"]):  
-                    if i == 0:
-                        self.draw_vert_line(0.7, self.c_x + i * c_beat)
-                    else:
-                        self.draw_vert_line(0.9, self.c_x + i * c_beat)   
+                    self.draw_vert_line((0.7 if i == 0 else 0.9), self.c_x + i * c_beat)
 
                 # Draws the horizontal lines
                 for i in range(5):
-                    if i == 0 or i == 4:
-                        self.crs[self.c_cr].set_source_rgb(0.6, 0.6, 0.6)
-                    else:
-                        self.crs[self.c_cr].set_source_rgb(0.7, 0.7, 0.7)
+                    color = 0.6 if i == 0 or i == 4 else 0.7
+                    self.crs[self.cr_i].set_source_rgb(color, color, color)
 
-                    self.crs[self.c_cr].move_to(self.c_x, self.c_y)
-                    self.crs[self.c_cr].line_to(self.c_x + self.measure_length * self.m2l, self.c_y) 
-                    self.crs[self.c_cr].stroke()
+                    self.crs[self.cr_i].move_to(self.c_x, self.c_y)
+                    self.crs[self.cr_i].line_to(self.c_x + self.measure_length * self.m2l, self.c_y) 
+                    self.crs[self.cr_i].stroke()
                     self.c_y += self.notes_offset
 
                 self.c_y -= self.notes_offset * 5
 
                 # Draws bpms in measure
-                self.crs[self.c_cr].set_source_rgb(0, 0, 0)   
-                self.crs[self.c_cr].set_font_size(9)  
+                self.crs[self.cr_i].set_source_rgb(0, 0, 0)   
+                self.crs[self.cr_i].set_font_size(9)  
                 if b < len(bpms):
                     while bpms[b]["position"] < self.c_length:  
                         bpm_pos = bpms[b]["position"] * self.m2l - sum(self.line_lengths)
 
                         x = self.MEASURE_OFFSET + bpm_pos
 
-                        self.crs[self.c_cr].move_to(x, self.c_y - measure_num_offset * 3)
+                        self.crs[self.cr_i].move_to(x, self.c_y - measure_num_offset * 3)
 
                         str_bpm = "t=" + str(bpms[b]["value"])
-                        self.crs[self.c_cr].show_text(str_bpm)
+                        self.crs[self.cr_i].show_text(str_bpm)
 
                         b += 1
 
@@ -446,16 +428,16 @@ class Chart_Img():
                             break  
 
                 # Draws sections in measure 
-                self.crs[self.c_cr].set_font_size(11)  
+                self.crs[self.cr_i].set_font_size(11)  
                 if s < len(sections):
                     while sections[s]["position"] < self.c_length:  
                         section_pos = sections[s]["position"] * self.m2l - sum(self.line_lengths)
 
                         x = self.MEASURE_OFFSET + section_pos
 
-                        self.crs[self.c_cr].move_to(x, self.c_y - measure_num_offset * 5)
+                        self.crs[self.cr_i].move_to(x, self.c_y - measure_num_offset * 5)
 
-                        self.crs[self.c_cr].show_text(sections[s]["name"])
+                        self.crs[self.cr_i].show_text(sections[s]["name"])
 
                         s += 1
 
@@ -489,21 +471,21 @@ class Chart_Img():
                         # Open note
                         num = 5 if sustain_notes[i]["number"] == 7 else sustain_notes[i]["number"]
 
-                        self.crs[self.c_cr].set_source_rgb(self.NOTE_COLORS[num][0], self.NOTE_COLORS[num][1], \
+                        self.crs[self.cr_i].set_source_rgb(self.NOTE_COLORS[num][0], self.NOTE_COLORS[num][1], \
                             self.NOTE_COLORS[num][2])
-                        self.crs[self.c_cr].move_to(self.c_x, self.c_y + num * self.notes_offset)
+                        self.crs[self.cr_i].move_to(self.c_x, self.c_y + num * self.notes_offset)
 
                         if sustain_notes[i]["length"] > self.measure_length:
                             line_length = self.measure_length * self.m2l
                             # Open note
                             if num == 5:
-                                self.crs[self.c_cr].set_source_rgba(1, 0, 1, 0.5)
-                                self.crs[self.c_cr].rectangle(self.c_x, self.c_y, line_length, 4 * self.notes_offset) 
-                                self.crs[self.c_cr].fill()      
-                                self.crs[self.c_cr].set_source_rgba(1, 0, 1, 1)   
+                                self.crs[self.cr_i].set_source_rgba(1, 0, 1, 0.5)
+                                self.crs[self.cr_i].rectangle(self.c_x, self.c_y, line_length, 4 * self.notes_offset) 
+                                self.crs[self.cr_i].fill()      
+                                self.crs[self.cr_i].set_source_rgba(1, 0, 1, 1)   
                             else:
-                                self.crs[self.c_cr].line_to(self.c_x + line_length, self.c_y + num * self.notes_offset) 
-                                self.crs[self.c_cr].stroke()   
+                                self.crs[self.cr_i].line_to(self.c_x + line_length, self.c_y + num * self.notes_offset) 
+                                self.crs[self.cr_i].stroke()   
 
                             if sustain_notes[i]["unique"]:    
                                 length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * \
@@ -518,15 +500,15 @@ class Chart_Img():
                             line_length = sustain_notes[i]["length"] * self.m2l
                             # Open note
                             if num == 5:
-                                self.crs[self.c_cr].set_source_rgba(1, 0, 1, 0.5)
-                                self.crs[self.c_cr].rectangle(self.c_x, self.c_y, line_length, 4 * \
+                                self.crs[self.cr_i].set_source_rgba(1, 0, 1, 0.5)
+                                self.crs[self.cr_i].rectangle(self.c_x, self.c_y, line_length, 4 * \
                                     self.notes_offset) 
-                                self.crs[self.c_cr].fill()
-                                self.crs[self.c_cr].set_source_rgba(1, 0, 1, 1)   
+                                self.crs[self.cr_i].fill()
+                                self.crs[self.cr_i].set_source_rgba(1, 0, 1, 1)   
                             else:
-                                self.crs[self.c_cr].line_to(self.c_x + line_length, self.c_y + num * \
+                                self.crs[self.cr_i].line_to(self.c_x + line_length, self.c_y + num * \
                                     self.notes_offset) 
-                                self.crs[self.c_cr].stroke()
+                                self.crs[self.cr_i].stroke()
 
                             if sustain_notes[i]["unique"]:    
                                 length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * \
@@ -544,12 +526,13 @@ class Chart_Img():
                             sustain_notes[i]["length"] = 0           
                         
                     # Removes notes with empty length
-                    for i in range(len(sustain_notes)):
-                        if i >= len(sustain_notes):
-                            break
-
-                        if sustain_notes[i]["length"] == 0:
-                            sustain_notes.remove(sustain_notes[i])
+                    i = 0
+                    while i < len(sustain_notes):
+                        
+                        if sustain_notes[i]["length"] == 0:  
+                            sustain_notes.remove(sustain_notes[i])   
+                        else:
+                            i += 1
                 
                 # Draws notes in measure  
                 measure_pos = self.MEASURE_OFFSET + self.c_length * self.m2l - sum(self.line_lengths)     
@@ -564,7 +547,7 @@ class Chart_Img():
                         self.chart.sp, pos_in_phrase = self.chart.pos_in_section(self.chart.sp, 
                         self.chart.sp_phrases, self.notes[n]["position"])
 
-                        self.crs[self.c_cr].move_to(x, y)
+                        self.crs[self.cr_i].move_to(x, y)
                         self.draw_note(x, y, self.notes[n]["number"], pos_in_phrase)               
 
                         if c_multiplier < 4:
@@ -594,7 +577,7 @@ class Chart_Img():
                                 c_solo_score = 0                  
 
                         if self.notes[n]["length"] > 0: 
-                            self.crs[self.c_cr].move_to(x, y)                                     
+                            self.crs[self.cr_i].move_to(x, y)                                     
 
                             length_pos = x + self.notes[n]["length"] * self.m2l 
 
@@ -604,13 +587,13 @@ class Chart_Img():
                                 note_measure_length = (measure_pos - x) / self.m2l
                                 # Open note
                                 if num == 5:
-                                    self.crs[self.c_cr].set_source_rgba(1, 0, 1, 0.5)
-                                    self.crs[self.c_cr].rectangle(x, self.c_y, measure_pos - x, 4 * self.notes_offset) 
-                                    self.crs[self.c_cr].fill()      
-                                    self.crs[self.c_cr].set_source_rgba(1, 0, 1, 1)     
+                                    self.crs[self.cr_i].set_source_rgba(1, 0, 1, 0.5)
+                                    self.crs[self.cr_i].rectangle(x, self.c_y, measure_pos - x, 4 * self.notes_offset) 
+                                    self.crs[self.cr_i].fill()      
+                                    self.crs[self.cr_i].set_source_rgba(1, 0, 1, 1)     
                                 else:
-                                    self.crs[self.c_cr].line_to(measure_pos, y) 
-                                    self.crs[self.c_cr].stroke()
+                                    self.crs[self.cr_i].line_to(measure_pos, y) 
+                                    self.crs[self.cr_i].stroke()
 
                                 if self.chart.is_unique_note(self.notes[n]):     
                                     length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * \
@@ -631,13 +614,13 @@ class Chart_Img():
                             else:
                                 # Open note
                                 if num == 5:
-                                    self.crs[self.c_cr].set_source_rgba(1, 0, 1, 0.5)
-                                    self.crs[self.c_cr].rectangle(x, self.c_y, length_pos - x, 4 * self.notes_offset) 
-                                    self.crs[self.c_cr].fill()
-                                    self.crs[self.c_cr].set_source_rgba(1, 0, 1, 1)   
+                                    self.crs[self.cr_i].set_source_rgba(1, 0, 1, 0.5)
+                                    self.crs[self.cr_i].rectangle(x, self.c_y, length_pos - x, 4 * self.notes_offset) 
+                                    self.crs[self.cr_i].fill()
+                                    self.crs[self.cr_i].set_source_rgba(1, 0, 1, 1)   
                                 else:
-                                    self.crs[self.c_cr].line_to(length_pos, y)   
-                                    self.crs[self.c_cr].stroke()  
+                                    self.crs[self.cr_i].line_to(length_pos, y)   
+                                    self.crs[self.cr_i].stroke()  
 
                                 if self.chart.is_unique_note(self.notes[n]):     
                                     length_score = self.chart.NOTE_SCORE / 2 * c_multiplier * self.notes[n]["length"] \
@@ -659,49 +642,47 @@ class Chart_Img():
 
                 # Draws current sp bar value
                 '''
-                if self.chart.sp_phrases:
-                    self.crs[self.c_cr].set_font_size(9)
-                    self.crs[self.c_cr].set_source_rgb(0, 0.4, 1)  
+                if self.chart.sp_phrases and self.chart.has_sp_path:
+                    self.crs[self.cr_i].set_font_size(9)
+                    self.crs[self.cr_i].set_source_rgb(0, 0.4, 1)  
                     pos_index = self.c_length if self.c_length < len(self.chart.sp_path.pos_scores) \
                     else len(self.chart.sp_path.pos_scores) - 1
                     sp_value = self.chart.sp_path.pos_scores[pos_index]["sp_value"]
-                    sp_value = int((sp_value / self.chart.resolution) * 100 / 32)
-                    str_sp_bar_value = str(sp_value)
-                    (_, _, width, _, _, _) = self.crs[self.c_cr].text_extents(str_sp_bar_value)
-                    self.crs[self.c_cr].move_to(measure_pos - width, self.c_y - 0.35 * self.notes_offset)   
-                    self.crs[self.c_cr].show_text(str_sp_bar_value)   
+                    sp_value = int((sp_value / self.chart.resolution) / 32)
+                    str_sp_bar_value = str(sp_value) + "SP"
+                    #str_sp_bar_value = "SP"
+                    (_, _, width, _, _, _) = self.crs[self.cr_i].text_extents(str_sp_bar_value)
+                    self.crs[self.cr_i].move_to(measure_pos - width, self.c_y - 0.35 * self.notes_offset)   
+                    self.crs[self.cr_i].show_text(str_sp_bar_value)   
                 '''
+                
+                
                 # Draws measure score
-                self.crs[self.c_cr].set_font_size(11)
-                self.crs[self.c_cr].set_source_rgb(0.5, 0.5, 0.5)  
+                self.crs[self.cr_i].set_font_size(11)
+                self.crs[self.cr_i].set_source_rgb(0.5, 0.5, 0.5)  
                 str_measure_score = str(int(measure_score))
-                #str_measure_score = "{0:.3f}".format(measure_score)
-                (_, _, width, _, _, _) = self.crs[self.c_cr].text_extents(str_measure_score)
-                self.crs[self.c_cr].move_to(measure_pos - width, self.c_y + 5 * self.notes_offset)   
-                self.crs[self.c_cr].show_text(str_measure_score)   
+                (_, _, width, _, _, _) = self.crs[self.cr_i].text_extents(str_measure_score)
+                self.crs[self.cr_i].move_to(measure_pos - width, self.c_y + 5 * self.notes_offset)   
+                self.crs[self.cr_i].show_text(str_measure_score)   
                 # Draws current score
-                self.crs[self.c_cr].set_source_rgb(self.SP_PHRASE_COLOR[0], self.SP_PHRASE_COLOR[1], self.SP_PHRASE_COLOR[2])  
+                self.crs[self.cr_i].set_source_rgb(self.SP_PHRASE_COLOR[0], self.SP_PHRASE_COLOR[1], self.SP_PHRASE_COLOR[2])  
                 str_c_score = str(int(c_score))
-                #str_c_score = "{0:.3f}".format(c_score)
-                (_, _, width, _, _, _) = self.crs[self.c_cr].text_extents(str_c_score)
-                self.crs[self.c_cr].move_to(measure_pos - width, self.c_y + 5.75 * self.notes_offset)   
-                self.crs[self.c_cr].show_text(str_c_score)   
+                (_, _, width, _, _, _) = self.crs[self.cr_i].text_extents(str_c_score)
+                self.crs[self.cr_i].move_to(measure_pos - width, self.c_y + 5.75 * self.notes_offset)   
+                self.crs[self.cr_i].show_text(str_c_score)   
 
             self.c_x += self.measure_length * self.m2l 
 
         if not draw_notes:
             self.draw_vert_line(0.8, self.c_x)
 
-
 def main():
     app = Application()
-    #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/housethegrate - Clockwork/notes.chart")
-    app.read_chart_file("assets/Chart Examples/soulless5.chart")
+    #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/Shawn Lane Solo Medley/notes.chart")
+    app.read_chart_file("assets/Chart Examples/test.chart")
 
     Chart_Img(app.song, next((chart for chart in app.song.charts \
     if chart.difficulty == "ExpertSingle"), app.song.charts[0]))
-
-
 
 if __name__ == "__main__":
     main()

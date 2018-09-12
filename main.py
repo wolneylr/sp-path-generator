@@ -4,7 +4,7 @@ from decimal import Decimal
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 
-# from chart_img import Chart_Img
+from chart_img import Chart_Img
 from util.chart import Chart
 from util.song import Song
 
@@ -14,7 +14,7 @@ class Application(tk.Tk):
         tk.Tk.__init__(self)
         self.geometry("600x450")
         self.grid_columnconfigure((0,1), weight=1)
-        self.title("SPPathCreator")
+        self.title("SP Path Generator")
         self.create_widgets()
 
     def show_chart_info(self, event=None):
@@ -185,7 +185,7 @@ class Application(tk.Tk):
                     self.song.add_section(section)
 
             elif str_part in self.song.DIFFICULTIES:
-                chart = Chart(str_part, self.song.resolution)
+                chart = Chart(str_part, self.song.resolution, self.song.time_signatures)
                 str_notes = []
                 str_sp_phrases = []
                 str_solo_sections = []
@@ -274,14 +274,14 @@ class Application(tk.Tk):
         filetypes = (("PNG files","*.png"),("All files","*.*")), initialfile=self.song.name.lower().replace(" ", ""))
         if file_name is None:
             return
-        '''
+        
         chart = self.song.charts[self.chart_box.current()]
         
         chart_image = Chart_Img(self.song, chart)
 
         for page in range(chart_image.num_pages):
             chart_image.imss[page].write_to_png(file_name.name + (str(page + 1) if chart_image.num_pages > 1 else ""))
-        '''
+        
         
         file_name.close()
 
