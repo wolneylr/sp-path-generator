@@ -677,12 +677,14 @@ class Chart_Img():
             self.draw_vert_line(0.8, self.c_x)
 
 def main():
+    '''
     app = Application()
     #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/Shawn Lane Solo Medley/notes.chart")
     app.read_chart_file("assets/Chart Examples/test.chart")
 
     Chart_Img(app.song, next((chart for chart in app.song.charts \
     if chart.difficulty == "ExpertSingle"), app.song.charts[0]))
+    '''
 
 if __name__ == "__main__":
     main()

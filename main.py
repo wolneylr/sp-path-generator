@@ -260,7 +260,7 @@ class Application(tk.Tk):
     def export_sections(self):
         file_name = asksaveasfile(mode='w', defaultextension=".txt", 
         filetypes = (("Text files","*.txt"),("All files","*.*")),
-        initialfile=self.song.name.lower() + "sections")
+        initialfile=self.song.name.lower().replace(" ", "") + "sections")
         if file_name is None:
             return
 
@@ -352,13 +352,13 @@ class Application(tk.Tk):
         self.chart_label = tk.Label(self, textvariable=self.chart_text, height=2)
 
         self.name_strvar = tk.StringVar()
-        self.name_entry = tk.Entry(self, textvariable=self.name_strvar,width=30,state="readonly")      
+        self.name_entry = tk.Entry(self, textvariable=self.name_strvar,width=35,state="readonly")      
 
         self.res_strvar = tk.StringVar()
-        self.res_entry = tk.Entry(self, textvariable=self.res_strvar,width=7,state="readonly")  
+        self.res_entry = tk.Entry(self, textvariable=self.res_strvar,width=5,state="readonly")  
 
         self.totsections_strvar = tk.StringVar()
-        self.totsections_entry = tk.Entry(self, textvariable=self.totsections_strvar,width=7,
+        self.totsections_entry = tk.Entry(self, textvariable=self.totsections_strvar,width=5,
             state="readonly")
 
         self.spphrases_strvar = tk.StringVar()
@@ -374,11 +374,11 @@ class Application(tk.Tk):
             state="readonly")
 
         self.basescore_strvar = tk.StringVar()
-        self.basescore_entry = tk.Entry(self, textvariable=self.basescore_strvar,width=15,
+        self.basescore_entry = tk.Entry(self, textvariable=self.basescore_strvar,width=12,
             state="readonly")
 
         self.baseavgmult_strvar = tk.StringVar()
-        self.baseavgmult_entry = tk.Entry(self, textvariable=self.baseavgmult_strvar,width=15,
+        self.baseavgmult_entry = tk.Entry(self, textvariable=self.baseavgmult_strvar,width=5,
             state="readonly")
 
         self.chart_box = tk.ttk.Combobox(self)
