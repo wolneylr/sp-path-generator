@@ -4,6 +4,8 @@ from decimal import Decimal
 from tkinter import ttk
 from tkinter.filedialog import askopenfilename, asksaveasfile
 
+import matplotlib.pyplot as plt
+
 from chart_img import Chart_Img
 from util.chart import Chart
 from util.song import Song
@@ -114,14 +116,16 @@ class Application(tk.Tk):
                     '''
         self.read_chart()
 
+    def plot_bpm(self):
+        plt.plot([bpm["position"] for bpm in self.song.bpms], [bpm["value"] for bpm in self.song.bpms], 
+        color='blue', linestyle='solid', marker='o', markerfacecolor='blue', markersize=3)
+        plt.ylabel("BPM Analysis")
+        plt.show()
+    
     def read_chart_file(self, file_name):    
         file_chart = open(file_name, "r")
         self.str_file = file_chart.read().splitlines()
         file_chart.close()
-
-        self.read_chart()
-
-    def read_chart(self):
 
         self.song_parts = [line for line in self.str_file if '[' in line]
 
@@ -243,9 +247,11 @@ class Application(tk.Tk):
         self.chart_box.bind("<<ComboboxSelected>>", self.show_chart_info)   
 
         self.file_menu.entryconfig(1, state="normal")
+        self.song_menu.entryconfig(0, state="normal")
         self.chart_menu.entryconfig(0, state="normal")
         self.export_menu.entryconfig(0, state="normal")
         self.export_menu.entryconfig(1, state="normal")
+        
 
     def save_file(self):
         file_name = asksaveasfile(mode='w', defaultextension=".txt",
@@ -295,6 +301,11 @@ class Application(tk.Tk):
         self.file_menu.add_command(label="Exit", command=self.quit)
         self.file_menu.entryconfig(1, state="disabled")
         self.menu_bar.add_cascade(label="File", menu=self.file_menu)
+
+        self.song_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.song_menu.add_command(label="BPM Analysis", command=self.plot_bpm)
+        self.song_menu.entryconfig(0, state="disabled")
+        self.menu_bar.add_cascade(label="Song", menu=self.song_menu)
 
         self.chart_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.chart_menu.add_command(label="Remove Beats", command=
