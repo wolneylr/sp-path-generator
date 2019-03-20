@@ -16,7 +16,8 @@ class Chart:
     SOULLESS4_SCORE = 2079014
     BROKED_AVGMULT = 3.777
 
-    def __init__(self, difficulty, resolution, time_sigs):
+    def __init__(self, name, difficulty, resolution, time_sigs):
+        self.name = name
         self.difficulty = difficulty
         self.resolution = resolution
         self.time_sigs = time_sigs

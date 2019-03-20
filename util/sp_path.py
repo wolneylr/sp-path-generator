@@ -27,6 +27,7 @@ class SP_Path:
 
     def __init__(self, chart):
         self.chart = chart
+        self.name = self.chart.name
         self.sp_phrases = self.chart.sp_phrases
 
         self.squeeze_length = self.chart.resolution / 64
@@ -36,8 +37,6 @@ class SP_Path:
         self.sp_end_notes = self.calc_sp_end_notes()
 
         self.pos_scores, self.sp_value_notes = self.calc_pos_scores(0, self.chart.length)
-                 
-        print("sum of pos scores = " + str(sum(self.pos_scores)))
 
         self.sp_activations = self.calc_optimal_path()
 
@@ -225,8 +224,6 @@ class SP_Path:
 
     def calc_optimal_path(self):
 
-        print("len(sp_value_notes) = " + str(len(self.sp_value_notes)))
-
         sp_value_notes_pos = [sp["position"] for sp in self.sp_value_notes]
 
         self.sp_graph = nx.DiGraph()
@@ -361,6 +358,7 @@ class SP_Path:
 
             current_nodes.remove(current_nodes[0])
 
+        nx.set_name(self.sp_graph, self.name)
         print(nx.info(self.sp_graph))   
 
         for node in self.sp_graph.nodes():

@@ -17,6 +17,7 @@ class Application(tk.Tk):
         self.geometry("600x450")
         self.grid_columnconfigure((0,1), weight=1)
         self.title("SP Path Generator")
+        self.config(background='#808080')
         self.create_widgets()
 
     def show_chart_info(self, event=None):
@@ -31,14 +32,9 @@ class Application(tk.Tk):
         self.file_name = askopenfilename(filetypes=(('Chart files', '*.chart'),("All files", "*.*")))
 
         if self.file_name:
-            # print(self.file_name)
-            self.read_chart_file(self.file_name)
+            self.read_chart(self.file_name)
 
-    # Needs improvement
     def remove_beats(self, beat_length, num_beats, offset):
-
-        if offset >= (num_beats + 1):
-            return
 
         for i in range(len(self.song_parts)): 
             str_part = self.song_parts[i].strip('[]')
@@ -51,12 +47,12 @@ class Application(tk.Tk):
                 else:
                     end_index = self.str_file.index(self.song_parts[i + 1]) - 1
 
-                c_length = 0
+                c_length = offset
                 beat_num = 0
+                measure_num = 0
 
                 num_beat_skips = 0
-                beat_skip = False
-
+                beat_skip = True
             
                 last_note = self.str_file[end_index - 1].split()
 
@@ -73,59 +69,61 @@ class Application(tk.Tk):
 
                     c_length += beat_length    
 
-                    if (beat_num - 1 + offset) % (num_beats + 1)  > 0:
+                    if (beat_num - 1) % num_beats > 0:
                         if not beat_skip:
                             beat_skip = True
                             num_beat_skips += 1 
                     else:
                         if beat_skip:
-                            beat_skip = False       
+                            beat_skip = False  
+                            measure_num += 1     
 
                     while int(line_list[0]) < c_length:  
-                        if line_list[2] == "TS":  
-                            j += 1
-                        elif beat_skip:          
-                            self.str_file.remove(self.str_file[j])                          
-                        else:
+                        self.str_file.remove(self.str_file[j])     
+ 
+                        if not beat_skip:  
                             line =	{
                                 "position": int(line_list[0]),
-                                "number": line_list[3],
+                                "number": self.str_file[j][(len(line_list[0]) + 2):] if line_list[2] == "E"
+                                else line_list[3],
                                 "length": line_list[4] if line_list[2] in ["N", "S"] else ""
                             }
 
-                            line["position"] -= beat_length * num_beat_skips * num_beats
+                            line["position"] -= beat_length * num_beat_skips 
 
-                            self.str_file.remove(self.str_file[j])
+                            if line_list[2] == "E":
+                                str_line = "  " + str(line["position"]) + line["number"]
+                            else:
+                                str_line = "  " + str(line["position"]) + " = " + line_list[2] + \
+                                " " + line["number"] 
 
-                            str_line = "  " + str(line["position"]) + " = " + line_list[2] + \
-                            " " + line["number"] +  (" " if line_list[2] in ["N", "S"] else "") + line["length"]
+                                if line["length"]:
+                                    str_line += " " + line["length"]
 
                             self.str_file.insert(j, str_line)
 
-                            j += 1                           
-
+                            j += 1     
                             
                         line_list = self.str_file[j].split()       
 
                         if line_list[0] == '}':
                             break   
-                    '''
-                    elif " = S 2" in self.str_file[j]:
-                    elif " = E solo" in c_str_file[j]:
-                        str_solo_sections.append(line)
-                    '''
-        self.read_chart()
+        self.read_chart(False)
 
     def plot_bpm(self):
+        plt.style.use('classic')
         plt.plot([bpm["position"] for bpm in self.song.bpms], [bpm["value"] for bpm in self.song.bpms], 
-        color='blue', linestyle='solid', marker='o', markerfacecolor='blue', markersize=3)
-        plt.ylabel("BPM Analysis")
+        color='green', linestyle='solid', marker='o', markerfacecolor='green', markersize=3)
+        plt.xlabel("Position")
+        plt.ylabel("BPM")
+        plt.grid(True)
         plt.show()
     
-    def read_chart_file(self, file_name):    
-        file_chart = open(file_name, "r")
-        self.str_file = file_chart.read().splitlines()
-        file_chart.close()
+    def read_chart(self, from_file):   
+        if from_file: 
+            file_chart = open(from_file, "r")
+            self.str_file = file_chart.read().splitlines()
+            file_chart.close()
 
         self.song_parts = [line for line in self.str_file if '[' in line]
 
@@ -152,8 +150,6 @@ class Application(tk.Tk):
                 song_resolution = song_resolution[len("['  Resolution = ") : \
                     len(song_resolution) - 2]
                 self.song = Song(song_name, song_charter, int(song_resolution))
-
-                #self.remove_beats(self.song.resolution * 2, 1, 1)
 
             elif str_part == "SyncTrack":
                 str_time_signatures = [line for line in str_content if " = TS " in line]
@@ -189,7 +185,7 @@ class Application(tk.Tk):
                     self.song.add_section(section)
 
             elif str_part in self.song.DIFFICULTIES:
-                chart = Chart(str_part, self.song.resolution, self.song.time_signatures)
+                chart = Chart(self.song.name, str_part, self.song.resolution, self.song.time_signatures)
                 str_notes = []
                 str_sp_phrases = []
                 str_solo_sections = []
@@ -309,7 +305,7 @@ class Application(tk.Tk):
 
         self.chart_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.chart_menu.add_command(label="Remove Beats", command=
-        lambda: self.remove_beats(960, 1, 0))
+        lambda: self.remove_beats(self.song.resolution * 2, 2, self.song.resolution * 2))
         self.chart_menu.entryconfig(0, state="disabled")
         self.menu_bar.add_cascade(label="Chart", menu=self.chart_menu)
 
@@ -328,45 +324,56 @@ class Application(tk.Tk):
 
         self.name_text = tk.StringVar()
         self.name_text.set("Name: ")
-        self.name_label = tk.Label(self, textvariable=self.name_text, height=2)
+        self.name_label = tk.Label(self, textvariable=self.name_text, 
+        height=2, background='#808080')
 
         self.res_text = tk.StringVar()
         self.res_text.set("Resolution: ")
-        self.res_label = tk.Label(self, textvariable=self.res_text, height=2)
+        self.res_label = tk.Label(self, textvariable=self.res_text, 
+        height=2, background='#808080')
 
         self.totsections_text = tk.StringVar()
         self.totsections_text.set("Total Sections: ")
-        self.totsections_label = tk.Label(self, textvariable=self.totsections_text, height=2)
+        self.totsections_label = tk.Label(self, textvariable=self.totsections_text, 
+        height=2, background='#808080')
 
         self.spphrases_text = tk.StringVar()
         self.spphrases_text.set("Total SP Phrases: ")
-        self.spphrases_label = tk.Label(self, textvariable=self.spphrases_text, height=2)
+        self.spphrases_label = tk.Label(self, textvariable=self.spphrases_text, 
+        height=2, background='#808080')
 
         self.uniquenotes_text = tk.StringVar()
         self.uniquenotes_text.set("Total Notes (unique): ")
-        self.uniquenotes_label = tk.Label(self, textvariable=self.uniquenotes_text, height=2)
+        self.uniquenotes_label = tk.Label(self, textvariable=self.uniquenotes_text, 
+        height=2, background='#808080')
 
         self.notes_text = tk.StringVar()
         self.notes_text.set("Total Notes: ")
-        self.notes_label = tk.Label(self, textvariable=self.notes_text, height=2)
+        self.notes_label = tk.Label(self, textvariable=self.notes_text, 
+        height=2, background='#808080')
 
         self.basescore_text = tk.StringVar()
         self.basescore_text.set("Base Score: ")
-        self.basescore_label = tk.Label(self, textvariable=self.basescore_text, height=2)
+        self.basescore_label = tk.Label(self, textvariable=self.basescore_text, 
+        height=2, background='#808080')
 
         self.baseavgmult_text = tk.StringVar()
         self.baseavgmult_text.set("Base Avg. Multiplier: ")
-        self.baseavgmult_label = tk.Label(self, textvariable=self.baseavgmult_text, height=2)
+        self.baseavgmult_label = tk.Label(self, textvariable=self.baseavgmult_text, 
+        height=2, background='#808080')
 
         self.chart_text = tk.StringVar()
         self.chart_text.set("Chart: ")
-        self.chart_label = tk.Label(self, textvariable=self.chart_text, height=2)
+        self.chart_label = tk.Label(self, textvariable=self.chart_text, 
+        height=2, background='#808080')
 
         self.name_strvar = tk.StringVar()
-        self.name_entry = tk.Entry(self, textvariable=self.name_strvar,width=35,state="readonly")      
+        self.name_entry = tk.Entry(self, textvariable=self.name_strvar,width=50,state="readonly"
+        , background='#808080')      
 
         self.res_strvar = tk.StringVar()
-        self.res_entry = tk.Entry(self, textvariable=self.res_strvar,width=5,state="readonly")  
+        self.res_entry = tk.Entry(self, textvariable=self.res_strvar,width=5,state="readonly"
+        , background='#808080')  
 
         self.totsections_strvar = tk.StringVar()
         self.totsections_entry = tk.Entry(self, textvariable=self.totsections_strvar,width=5,

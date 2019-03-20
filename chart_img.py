@@ -1,11 +1,14 @@
+import datetime
 import math
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 import cairocffi as cairo
 
 #from main import Application
 
 class Chart_Img():
+
+    DARK_MODE = True
 
     WIDTH = 1024
     MEASURE_OFFSET = 40
@@ -15,6 +18,7 @@ class Chart_Img():
     STAR_SCALE = 30
     MAX_BEATS = 24
     MAX_LINES = 200
+    BOTTOM_HEIGHT = 180
     MAX_HEIGHT = MEASURE_HEIGHT * MAX_LINES
 
     STAR_POINTS = ((0, 85), (75, 75), (100, 10),
@@ -59,19 +63,22 @@ class Chart_Img():
         self.crs = []   
         self.cr_i = 0
 
+        self.bg_color = 0.3 if self.DARK_MODE else 1
+        self.text_color = 1 if self.DARK_MODE else 0
+
         for page in range(self.num_pages):         
 
             page_height = (self.height if self.height < self.MAX_HEIGHT else self.MAX_HEIGHT) + \
-                (110 if page == 0 else 60)
+                (self.BOTTOM_HEIGHT if page == 0 else self.BOTTOM_HEIGHT / 3)
 
             self.imss.append(cairo.ImageSurface(cairo.FORMAT_ARGB32, self.WIDTH, page_height))
             self.crs.append(cairo.Context(self.imss[page]))
             # Draw a white rectangle that's the page's size
-            self.crs[page].set_source_rgb(1, 1, 1)  
+            self.crs[page].set_source_rgb(self.bg_color, self.bg_color, self.bg_color)  
             self.crs[page].rectangle(0, 0, self.WIDTH, page_height)
             self.crs[page].fill()
 
-            self.crs[page].set_source_rgb(0, 0, 0)
+            self.crs[page].set_source_rgb(self.text_color, self.text_color, self.text_color)
             self.crs[page].select_font_face("Calibri", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 
             self.height -= self.MAX_HEIGHT
@@ -80,7 +87,6 @@ class Chart_Img():
 
         str_charter = "Charter: " + self.song.charter
         self.crs[0].set_font_size(12)
-        (_, _, width, _, _, _) = self.crs[0].text_extents(str_charter)
         self.crs[0].move_to(self.MEASURE_OFFSET / 4, self.c_y)    
         self.crs[0].show_text(str_charter)
 
@@ -109,7 +115,6 @@ class Chart_Img():
         self.c_y += 20 
         str_resolution = "Resolution: " + str(self.song.resolution)
         self.crs[0].set_font_size(12)
-        (_, _, width, _, _, _) = self.crs[0].text_extents(str_resolution)
         self.crs[0].move_to(self.MEASURE_OFFSET / 4, self.c_y)    
         self.crs[0].show_text(str_resolution)
 
@@ -126,6 +131,31 @@ class Chart_Img():
 
         self.draw_chart(False)
         self.draw_chart(True)
+
+        self.c_y += 150
+
+        self.crs[page].set_source_rgb(self.text_color, self.text_color, self.text_color)
+        date_time = "Generated on " + str(datetime.datetime.now())
+        self.crs[0].set_font_size(12)
+        self.crs[0].move_to(self.MEASURE_OFFSET / 4, self.c_y)    
+        self.crs[0].show_text(date_time)
+
+        github_link = "https://github.com/Yenlow73/sp-path-generator"
+        self.crs[0].set_font_size(12)
+        (_, _, width, _, _, _) = self.crs[0].text_extents(github_link)
+        self.crs[0].move_to(self.WIDTH - width - self.MEASURE_OFFSET / 4, self.c_y)   
+        self.crs[0].show_text(github_link)
+
+        self.c_y += 20 
+
+        sp_path_creator = "SPPathCreator v0.1 written by Yenlow73"
+        self.crs[0].set_font_size(12)
+        (_, _, width, _, _, _) = self.crs[0].text_extents(sp_path_creator)
+        self.crs[0].move_to(self.MEASURE_OFFSET / 4, self.c_y)    
+        self.crs[0].show_text(sp_path_creator)
+
+
+
 
         if __name__ == "__main__":
             for page in range(self.num_pages):
@@ -409,7 +439,7 @@ class Chart_Img():
                 self.c_y -= self.notes_offset * 5
 
                 # Draws bpms in measure
-                self.crs[self.cr_i].set_source_rgb(0, 0, 0)   
+                self.crs[self.cr_i].set_source_rgb(self.text_color, self.text_color, self.text_color)   
                 self.crs[self.cr_i].set_font_size(9)  
                 if b < len(bpms):
                     while bpms[b]["position"] < self.c_length:  

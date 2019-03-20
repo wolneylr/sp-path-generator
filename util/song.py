@@ -28,7 +28,7 @@ class Song:
 
     def __init__(self, name, charter, resolution=192):
         self.name = name if name else "Unknown"
-        self.charter = charter if charter else "Unknown"
+        self.charter = charter if charter else "Unknown Charter"
         self.resolution = resolution 
         self.bpms = []
         self.time_signatures = []
