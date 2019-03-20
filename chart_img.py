@@ -148,7 +148,7 @@ class Chart_Img():
 
         self.c_y += 20 
 
-        sp_path_creator = "SPPathCreator v0.1 written by Yenlow73"
+        sp_path_creator = "SPPathGenerator v0.1 written by Yenlow73"
         self.crs[0].set_font_size(12)
         (_, _, width, _, _, _) = self.crs[0].text_extents(sp_path_creator)
         self.crs[0].move_to(self.MEASURE_OFFSET / 4, self.c_y)    
