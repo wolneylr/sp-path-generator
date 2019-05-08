@@ -8,8 +8,6 @@ import cairocffi as cairo
 
 class Chart_Img():
 
-    DARK_MODE = True
-
     WIDTH = 1024
     MEASURE_OFFSET = 40
     MEASURE_HEIGHT = 125
@@ -18,7 +16,7 @@ class Chart_Img():
     STAR_SCALE = 30
     MAX_BEATS = 24
     MAX_LINES = 200
-    BOTTOM_HEIGHT = 180
+    BOTTOM_HEIGHT = 150
     MAX_HEIGHT = MEASURE_HEIGHT * MAX_LINES
 
     STAR_POINTS = ((0, 85), (75, 75), (100, 10),
@@ -37,17 +35,27 @@ class Chart_Img():
     SP_ACTIVATION_COLOR = [0, 0, 1]
     SP_ACTIVATION_ALPHA = 0.4
 
-    POS_MODE = True
+    POS_MODE = False
+    DRAW_SP_VALUE = False
 
-    SP_PATH = True
+    c_length = 0
+
+    sp_path = 0
+    dark_mode = 0
+
+    bg_color = 0
+    text_color = 0
 
     def __init__(self, song, chart):
         self.song = song
         self.chart = chart
-        self.c_y = 0
+        self.c_y = 0        
 
-        if self.SP_PATH:
-            self.chart.add_sp_path()
+    def draw_pages(self):
+        self.chart.add_sp_path(self.sp_path)
+
+        self.bg_color = 0.3 if self.dark_mode else 1
+        self.text_color = 1 if self.dark_mode else 0
 
         self.chart.add_solo_end_notes()
         self.notes = self.chart.notes
@@ -57,19 +65,20 @@ class Chart_Img():
         self.m2l = self.max_line_length / (self.song.resolution * self.MAX_BEATS)
         
         self.height = self.calculate_height()
+        self.first_page_height = 0
         self.num_pages = math.floor(self.height / self.MAX_HEIGHT) + 1
 
         self.imss = []
         self.crs = []   
         self.cr_i = 0
 
-        self.bg_color = 0.3 if self.DARK_MODE else 1
-        self.text_color = 1 if self.DARK_MODE else 0
-
         for page in range(self.num_pages):         
 
             page_height = (self.height if self.height < self.MAX_HEIGHT else self.MAX_HEIGHT) + \
                 (self.BOTTOM_HEIGHT if page == 0 else self.BOTTOM_HEIGHT / 3)
+
+            if page == 0:
+                self.first_page_height = page_height
 
             self.imss.append(cairo.ImageSurface(cairo.FORMAT_ARGB32, self.WIDTH, page_height))
             self.crs.append(cairo.Context(self.imss[page]))
@@ -84,7 +93,8 @@ class Chart_Img():
             self.height -= self.MAX_HEIGHT
 
         self.c_y += 30
-
+    
+    def draw_top_info(self):
         str_charter = "Charter: " + self.song.charter
         self.crs[0].set_font_size(12)
         self.crs[0].move_to(self.MEASURE_OFFSET / 4, self.c_y)    
@@ -118,24 +128,22 @@ class Chart_Img():
         self.crs[0].move_to(self.MEASURE_OFFSET / 4, self.c_y)    
         self.crs[0].show_text(str_resolution)
 
-        (_, _, width, _, _, _) = self.crs[0].text_extents(song.DIFFICULTIES[chart.difficulty])
+        (_, _, width, _, _, _) = self.crs[0].text_extents(self.song.DIFFICULTIES[self.chart.difficulty])
         self.crs[0].move_to(self.WIDTH / 2 - width / 2, self.c_y)   
-        self.crs[0].show_text(song.DIFFICULTIES[chart.difficulty])
+        self.crs[0].show_text(self.song.DIFFICULTIES[self.chart.difficulty])
         
-        est_score = "Est. Score: " + str(math.floor(self.chart.calculate_score(0, len(self.chart.notes))))
+        est_score = "Est. Base Score: " + str(math.floor(self.chart.calculate_score(0, len(self.chart.notes))))
         (_, _, width, _, _, _) = self.crs[0].text_extents(est_score)
         self.crs[0].move_to(self.WIDTH - width - self.MEASURE_OFFSET / 4, self.c_y)   
         self.crs[0].show_text(est_score)
 
         self.c_y += 60
+        
+    def draw_bottom_info(self):
+        self.c_y += 120
 
-        self.draw_chart(False)
-        self.draw_chart(True)
-
-        self.c_y += 150
-
-        self.crs[page].set_source_rgb(self.text_color, self.text_color, self.text_color)
-        date_time = "Generated on " + str(datetime.datetime.now())
+        self.crs[0].set_source_rgb(self.text_color, self.text_color, self.text_color)
+        date_time = "Generated on " + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
         self.crs[0].set_font_size(12)
         self.crs[0].move_to(self.MEASURE_OFFSET / 4, self.c_y)    
         self.crs[0].show_text(date_time)
@@ -148,19 +156,11 @@ class Chart_Img():
 
         self.c_y += 20 
 
-        sp_path_creator = "SPPathGenerator v0.1 written by Yenlow73"
+        sp_path_creator = "SPPathGenerator v0.116 written by Yenlow73"
         self.crs[0].set_font_size(12)
         (_, _, width, _, _, _) = self.crs[0].text_extents(sp_path_creator)
         self.crs[0].move_to(self.MEASURE_OFFSET / 4, self.c_y)    
         self.crs[0].show_text(sp_path_creator)
-
-
-
-
-        if __name__ == "__main__":
-            for page in range(self.num_pages):
-                self.imss[page].write_to_png("assets/Chart Images/" + self.song.name.lower().replace(" ", "") + \
-                    (str(page + 1) if self.num_pages > 1 else "") + ".png")
 
     def calculate_height(self):
         height = 0
@@ -310,7 +310,6 @@ class Chart_Img():
         return i, length   
 
     def draw_chart(self, draw_notes): 
-
         self.c_length = 0
         c_ts = -1
         
@@ -378,11 +377,11 @@ class Chart_Img():
             if (self.c_measure_length + self.measure_length) * self.m2l - self.max_line_length > self.EPSILON:  
                 self.line_lengths.append(self.c_measure_length * self.m2l)
 
-                # Split measure if measure length is bigger than line length
                 
                 if not draw_notes:
                     self.draw_vert_line(0.7, self.c_x)
 
+                # Split measure if measure length is bigger than line length
                 self.c_x = self.MEASURE_OFFSET
                 self.c_y += self.MEASURE_HEIGHT
                 self.c_measure_length = 0
@@ -413,13 +412,12 @@ class Chart_Img():
 
                 # Draws the measure number
                 self.crs[self.cr_i].select_font_face("Calibri", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-                self.crs[self.cr_i].set_source_rgb(0.8, 0.2, 0.2)    
+                self.crs[self.cr_i].set_source_rgb(0.8, 0, 0)    
                 self.crs[self.cr_i].set_font_size(9)
                 self.crs[self.cr_i].move_to(self.c_x, self.c_y - measure_num_offset)
 
                 self.crs[self.cr_i].show_text(str(self.c_length - self.measure_length) \
                     if self.POS_MODE else str(measure_num))                
-
 
                 # Draws the vertical lines         
                 c_beat = self.song.resolution * self.m2l  
@@ -672,20 +670,17 @@ class Chart_Img():
 
                 # Draws current sp bar value
                 '''
-                if self.chart.sp_phrases and self.chart.has_sp_path:
-                    self.crs[self.cr_i].set_font_size(9)
-                    self.crs[self.cr_i].set_source_rgb(0, 0.4, 1)  
-                    pos_index = self.c_length if self.c_length < len(self.chart.sp_path.pos_scores) \
-                    else len(self.chart.sp_path.pos_scores) - 1
-                    sp_value = self.chart.sp_path.pos_scores[pos_index]["sp_value"]
-                    sp_value = int((sp_value / self.chart.resolution) / 32)
-                    str_sp_bar_value = str(sp_value) + "SP"
-                    #str_sp_bar_value = "SP"
-                    (_, _, width, _, _, _) = self.crs[self.cr_i].text_extents(str_sp_bar_value)
-                    self.crs[self.cr_i].move_to(measure_pos - width, self.c_y - 0.35 * self.notes_offset)   
-                    self.crs[self.cr_i].show_text(str_sp_bar_value)   
-                '''
-                
+                if sa > 0:
+                    if sp_activations[sa - 1]["position"] < self.c_length and self.DRAW_SP_VALUE: 
+                        self.crs[self.cr_i].set_font_size(9)
+                        self.crs[self.cr_i].set_source_rgb(0, 0.4, 1)  
+                        sp_value = sp_activations[sa]["sp_value"]
+                        sp_value = int((sp_value / self.chart.resolution) / 32)
+                        str_sp_bar_value = str(sp_value) 
+                        (_, _, width, _, _, _) = self.crs[self.cr_i].text_extents(str_sp_bar_value)
+                        self.crs[self.cr_i].move_to(measure_pos - width, self.c_y - 0.35 * self.notes_offset)   
+                        self.crs[self.cr_i].show_text(str_sp_bar_value)      
+                '''            
                 
                 # Draws measure score
                 self.crs[self.cr_i].set_font_size(11)
@@ -705,16 +700,3 @@ class Chart_Img():
 
         if not draw_notes:
             self.draw_vert_line(0.8, self.c_x)
-
-def main():
-    '''
-    app = Application()
-    #app.read_chart_file("E:/WOLNEY JR/Guitar Hero/Songs/Yenlow73's Setlist/Shawn Lane Solo Medley/notes.chart")
-    app.read_chart_file("assets/Chart Examples/test.chart")
-
-    Chart_Img(app.song, next((chart for chart in app.song.charts \
-    if chart.difficulty == "ExpertSingle"), app.song.charts[0]))
-    '''
-
-if __name__ == "__main__":
-    main()

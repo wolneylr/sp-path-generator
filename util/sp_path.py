@@ -178,7 +178,7 @@ class SP_Path:
         return lo
 
     # A modified version of Kadane's algorithm (Dynamic Programming)
-    def calc_largest_score(self, length, start, end):
+    def calc_largest_score(self, length, start, end, sp_value):
         c_score = 0
 
         n_length = min(length, self.chart.length - start)
@@ -189,7 +189,8 @@ class SP_Path:
         max_score = {
             "score": c_score,
             "position": start,
-            "length": length
+            "length": length,
+            "sp_value": sp_value
         }
 
         if length >= self.chart.length - start:
@@ -365,7 +366,7 @@ class SP_Path:
             if node not in [first_pos_node, last_pos_node]:
                 max_score = self.calc_largest_score(int(node[2]) if \
                 self.chart.length > int(node[2]) else self.chart.length, \
-                int(node[0]), int(node[1]))
+                int(node[0]), int(node[1]), int(node[3]))
                 self.sp_graph.node[node]["max_score"] = max_score
 
 

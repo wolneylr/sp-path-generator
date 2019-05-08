@@ -16,6 +16,8 @@ class Chart:
     SOULLESS4_SCORE = 2079014
     BROKED_AVGMULT = 3.777
 
+    has_sp_path = False
+
     def __init__(self, name, difficulty, resolution, time_sigs):
         self.name = name
         self.difficulty = difficulty
@@ -64,10 +66,11 @@ class Chart:
 
         return max_length
 
-    def add_sp_path(self):
-        if self.sp_phrases:
+    def add_sp_path(self, show_sp_path):
+        self.has_sp_path = show_sp_path
+        if self.sp_phrases and self.has_sp_path:
             self.sp_path = SP_Path(self) 
-            self.has_sp_path = True
+            
 
     def pos_in_section(self, i, sections, position):
         while i < len(sections):

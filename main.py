@@ -12,12 +12,16 @@ from util.song import Song
 
 
 class Application(tk.Tk):
+    chart_image = None
+    drawing = False
     def __init__(self):
         tk.Tk.__init__(self)
-        self.geometry("600x450")
-        self.grid_columnconfigure((0,1), weight=1)
+        #self.geometry("1080x720")
+        self.grid_rowconfigure((0, 1), weight=1)
+        self.grid_columnconfigure((0, 1), weight=1)
+        self.grid_columnconfigure(1, minsize=1056)
+        self.grid_rowconfigure(0, minsize=580)
         self.title("SP Path Generator")
-        self.config(background='#808080')
         self.create_widgets()
 
     def show_chart_info(self, event=None):
@@ -34,6 +38,7 @@ class Application(tk.Tk):
         if self.file_name:
             self.read_chart(self.file_name)
 
+    # Experimental feature, still has some bugs
     def remove_beats(self, beat_length, num_beats, offset):
 
         for i in range(len(self.song_parts)): 
@@ -139,7 +144,7 @@ class Application(tk.Tk):
                 
             str_part = self.song_parts[i].strip('[]')
 
-            if str_part == "Song":
+            if "Song" in str_part:
                 song_name = str([line for line in str_content if "Name = " in line])
                 song_name = song_name[len("['  Name = \"") : len(song_name) - 3]
 
@@ -151,7 +156,7 @@ class Application(tk.Tk):
                     len(song_resolution) - 2]
                 self.song = Song(song_name, song_charter, int(song_resolution))
 
-            elif str_part == "SyncTrack":
+            elif "SyncTrack" in str_part:
                 str_time_signatures = [line for line in str_content if " = TS " in line]
 
                 for str_time_signature in str_time_signatures:
@@ -172,7 +177,7 @@ class Application(tk.Tk):
                     }
                     self.song.add_bpm(bpm)   
 
-            elif str_part == "Events":
+            elif "Events" in str_part:
                 sections = [line for line in str_content if " = E \"section " in line]
 
                 for str_section in sections:
@@ -239,14 +244,17 @@ class Application(tk.Tk):
         self.chart_box["values"] = [self.song.DIFFICULTIES[chart.difficulty] for chart in self.song.charts]
         self.chart_box.current(0)
 
+        self.path_box["values"] = ["None", "Optimal"]
+        self.path_box.current(0)
+
         self.show_chart_info()
         self.chart_box.bind("<<ComboboxSelected>>", self.show_chart_info)   
 
         self.file_menu.entryconfig(1, state="normal")
         self.song_menu.entryconfig(0, state="normal")
-        self.chart_menu.entryconfig(0, state="normal")
         self.export_menu.entryconfig(0, state="normal")
-        self.export_menu.entryconfig(1, state="normal")
+
+        self.generate_button.config(state="normal")
         
 
     def save_file(self):
@@ -272,20 +280,17 @@ class Application(tk.Tk):
         file_name.close()
 
     def export_chart(self):
-        file_name = asksaveasfile(mode='a', defaultextension=".png", 
+        self.file_name = asksaveasfile(mode='a', defaultextension=".png", 
         filetypes = (("PNG files","*.png"),("All files","*.*")), initialfile=self.song.name.lower().replace(" ", ""))
-        if file_name is None:
+
+        if self.file_name is None:
             return
         
-        chart = self.song.charts[self.chart_box.current()]
+        for page in range(self.chart_image.num_pages):
+            self.chart_image.imss[page].write_to_png(self.file_name.name + (str(page + 1) 
+            if self.chart_image.num_pages > 1 else ""))
         
-        chart_image = Chart_Img(self.song, chart)
-
-        for page in range(chart_image.num_pages):
-            chart_image.imss[page].write_to_png(file_name.name + (str(page + 1) if chart_image.num_pages > 1 else ""))
-        
-        
-        file_name.close()
+        self.file_name.close()
 
     def create_widgets(self):
         self.menu_bar = tk.Menu(self)
@@ -322,105 +327,184 @@ class Application(tk.Tk):
 
         self.config(menu=self.menu_bar)
 
+        self.info_frame = ttk.LabelFrame(self, text="Info", relief=tk.RIDGE)
+        self.info_frame.grid(row=0, column=0, sticky="news")
+
         self.name_text = tk.StringVar()
-        self.name_text.set("Name: ")
-        self.name_label = tk.Label(self, textvariable=self.name_text, 
-        height=2, background='#808080')
+        self.name_text.set("Name")
+        self.name_label = tk.Label(self.info_frame, textvariable=self.name_text)
 
         self.res_text = tk.StringVar()
-        self.res_text.set("Resolution: ")
-        self.res_label = tk.Label(self, textvariable=self.res_text, 
-        height=2, background='#808080')
+        self.res_text.set("Resolution")
+        self.res_label = tk.Label(self.info_frame, textvariable=self.res_text)
 
         self.totsections_text = tk.StringVar()
-        self.totsections_text.set("Total Sections: ")
-        self.totsections_label = tk.Label(self, textvariable=self.totsections_text, 
-        height=2, background='#808080')
+        self.totsections_text.set("Total Sections")
+        self.totsections_label = tk.Label(self.info_frame, textvariable=self.totsections_text)
 
         self.spphrases_text = tk.StringVar()
-        self.spphrases_text.set("Total SP Phrases: ")
-        self.spphrases_label = tk.Label(self, textvariable=self.spphrases_text, 
-        height=2, background='#808080')
+        self.spphrases_text.set("Total SP Phrases")
+        self.spphrases_label = tk.Label(self.info_frame, textvariable=self.spphrases_text)
 
         self.uniquenotes_text = tk.StringVar()
-        self.uniquenotes_text.set("Total Notes (unique): ")
-        self.uniquenotes_label = tk.Label(self, textvariable=self.uniquenotes_text, 
-        height=2, background='#808080')
+        self.uniquenotes_text.set("Total Notes (unique)")
+        self.uniquenotes_label = tk.Label(self.info_frame, textvariable=self.uniquenotes_text)
 
         self.notes_text = tk.StringVar()
-        self.notes_text.set("Total Notes: ")
-        self.notes_label = tk.Label(self, textvariable=self.notes_text, 
-        height=2, background='#808080')
+        self.notes_text.set("Total Notes")
+        self.notes_label = tk.Label(self.info_frame, textvariable=self.notes_text)
 
         self.basescore_text = tk.StringVar()
-        self.basescore_text.set("Base Score: ")
-        self.basescore_label = tk.Label(self, textvariable=self.basescore_text, 
-        height=2, background='#808080')
+        self.basescore_text.set("Base Score")
+        self.basescore_label = tk.Label(self.info_frame, textvariable=self.basescore_text)
 
         self.baseavgmult_text = tk.StringVar()
-        self.baseavgmult_text.set("Base Avg. Multiplier: ")
-        self.baseavgmult_label = tk.Label(self, textvariable=self.baseavgmult_text, 
-        height=2, background='#808080')
-
-        self.chart_text = tk.StringVar()
-        self.chart_text.set("Chart: ")
-        self.chart_label = tk.Label(self, textvariable=self.chart_text, 
-        height=2, background='#808080')
+        self.baseavgmult_text.set("Base Avg. Multiplier")
+        self.baseavgmult_label = tk.Label(self.info_frame, textvariable=self.baseavgmult_text)
 
         self.name_strvar = tk.StringVar()
-        self.name_entry = tk.Entry(self, textvariable=self.name_strvar,width=50,state="readonly"
-        , background='#808080')      
+        self.name_entry = tk.Entry(self.info_frame, textvariable=self.name_strvar,width=50,state="readonly")      
 
         self.res_strvar = tk.StringVar()
-        self.res_entry = tk.Entry(self, textvariable=self.res_strvar,width=5,state="readonly"
-        , background='#808080')  
+        self.res_entry = tk.Entry(self.info_frame, textvariable=self.res_strvar,width=12,state="readonly")  
 
         self.totsections_strvar = tk.StringVar()
-        self.totsections_entry = tk.Entry(self, textvariable=self.totsections_strvar,width=5,
-            state="readonly")
+        self.totsections_entry = tk.Entry(self.info_frame, textvariable=self.totsections_strvar,width=12,
+        state="readonly")
 
         self.spphrases_strvar = tk.StringVar()
-        self.spphrases_entry = tk.Entry(self, textvariable=self.spphrases_strvar,width=7,
+        self.spphrases_entry = tk.Entry(self.info_frame, textvariable=self.spphrases_strvar,width=12,
             state="readonly")
         
         self.uniquenotes_strvar = tk.StringVar()
-        self.uniquenotes_entry = tk.Entry(self, textvariable=self.uniquenotes_strvar,width=7,
+        self.uniquenotes_entry = tk.Entry(self.info_frame, textvariable=self.uniquenotes_strvar,width=12,
             state="readonly")
 
         self.notes_strvar = tk.StringVar()
-        self.notes_entry = tk.Entry(self, textvariable=self.notes_strvar,width=7,
+        self.notes_entry = tk.Entry(self.info_frame, textvariable=self.notes_strvar,width=12,
             state="readonly")
 
         self.basescore_strvar = tk.StringVar()
-        self.basescore_entry = tk.Entry(self, textvariable=self.basescore_strvar,width=12,
+        self.basescore_entry = tk.Entry(self.info_frame, textvariable=self.basescore_strvar,width=12,
             state="readonly")
 
         self.baseavgmult_strvar = tk.StringVar()
-        self.baseavgmult_entry = tk.Entry(self, textvariable=self.baseavgmult_strvar,width=5,
+        self.baseavgmult_entry = tk.Entry(self.info_frame, textvariable=self.baseavgmult_strvar,width=12,
             state="readonly")
-
-        self.chart_box = tk.ttk.Combobox(self)
         
-        self.name_label.grid(row=0, column=0)
-        self.name_entry.grid(row=0, column=1)
-        self.res_label.grid(row=1, column=0)
-        self.res_entry.grid(row=1, column=1)
-        self.totsections_label.grid(row=2, column=0)
-        self.totsections_entry.grid(row=2, column=1)
+        self.name_label.grid(row=0, sticky="w")
+        self.name_entry.grid(row=1, sticky="w")
+        self.res_label.grid(row=2, sticky="w")
+        self.res_entry.grid(row=3, sticky="w")
+        self.totsections_label.grid(row=4, sticky="w")
+        self.totsections_entry.grid(row=5, sticky="w")
+        self.spphrases_label.grid(row=6, sticky="w")
+        self.spphrases_entry.grid(row=7, sticky="w") 
+        self.uniquenotes_label.grid(row=8, sticky="w")
+        self.uniquenotes_entry.grid(row=9, sticky="w")
+        self.notes_label.grid(row=10, sticky="w")
+        self.notes_entry.grid(row=11, sticky="w")
+        self.basescore_label.grid(row=12, sticky="w")
+        self.basescore_entry.grid(row=13, sticky="w")
+        self.baseavgmult_label.grid(row=14, sticky="w")
+        self.baseavgmult_entry.grid(row=15, sticky="w")
 
-        self.chart_label.grid(row=3, column=0)
-        self.chart_box.grid(row=3, column=1)
+        self.options_frame = ttk.LabelFrame(self, text="Options")
+        self.options_frame.grid(row=1, column=0, sticky="news")
 
-        self.spphrases_label.grid(row=4, column=0)
-        self.spphrases_entry.grid(row=4, column=1) 
-        self.uniquenotes_label.grid(row=5, column=0)
-        self.uniquenotes_entry.grid(row=5, column=1)
-        self.notes_label.grid(row=6, column=0)
-        self.notes_entry.grid(row=6, column=1)
-        self.basescore_label.grid(row=7, column=0)
-        self.basescore_entry.grid(row=7, column=1)
-        self.baseavgmult_label.grid(row=8, column=0)
-        self.baseavgmult_entry.grid(row=8, column=1)
+        self.chart_text = tk.StringVar()
+        self.chart_text.set("Chart")
+        self.chart_label = tk.Label(self.options_frame, textvariable=self.chart_text)
+
+        self.path_text = tk.StringVar()
+        self.path_text.set("Path")
+        self.path_label = tk.Label(self.options_frame, textvariable=self.path_text)
+
+        self.chart_box = tk.ttk.Combobox(self.options_frame)
+        self.path_box = tk.ttk.Combobox(self.options_frame)
+
+        self.dark_mode_button = ttk.Checkbutton(self.options_frame, text="Dark Mode")
+        self.dark_mode_button.state(['!disabled','selected'])
+
+        self.generate_button = tk.Button(self.options_frame, text="Generate", 
+        command=self.generate_chart_image, state="disabled")
+
+        self.progress_bar = ttk.Progressbar(self.options_frame, orient ="horizontal",
+        length = 150, mode ="determinate")
+
+        self.chart_label.grid(row=0, sticky="w")
+        self.chart_box.grid(row=1, sticky="w")
+        self.path_label.grid(row=2, sticky="w")
+        self.path_box.grid(row=3, sticky="w")
+        self.dark_mode_button.grid(row=4, sticky="w")
+        self.generate_button.grid(row=5, sticky="w")
+        self.progress_bar.grid(row=6, sticky="w")
+
+        self.img_frame = ttk.LabelFrame(self, text="Chart Preview")
+        self.img_frame.grid(row=0, column=1, sticky="news", rowspan=2)
+
+        self.frame_image = tk.Frame(self.img_frame)
+        self.frame_image.pack(expand=True, fill="both")
+        self.frame_image.grid_rowconfigure(0, weight = 1)
+        self.frame_image.grid_columnconfigure(0, weight = 1)
+
+        #self.xscrollbar = tk.Scrollbar(self.frame_image, orient=tk.HORIZONTAL)
+        #self.xscrollbar.grid(row=1, column=0, sticky="ew")
+
+        self.yscrollbar = tk.Scrollbar(self.frame_image)
+        self.yscrollbar.grid(row=0, column=1, sticky="ns")
+
+        self.canvas = tk.Canvas(self.frame_image)
+        #self.canvas.configxscrollcommand=self.xscrollbar.set)
+        self.canvas.config(yscrollcommand=self.yscrollbar.set)
+        self.canvas.grid(row=0, column=0, sticky="news")
+
+        self.canvas.config(scrollregion=self.canvas.bbox("all"))
+        #self.xscrollbar.config(command=self.canvas.xview)
+        self.yscrollbar.config(command=self.canvas.yview)    
+
+        self.frame_image.pack()
+
+    def generate_chart_image(self):
+        self.chart = self.song.charts[self.chart_box.current()]
+        self.chart_image = Chart_Img(self.song, self.chart)
+
+        self.chart_image.sp_path = self.path_box.current()
+        self.chart_image.dark_mode = self.dark_mode_button.instate(['selected'])
+         
+        self.chart_image.draw_pages()
+
+        self.progress_bar.config(maximum=self.chart_image.chart_length)
+        self.drawing = True
+        self.read_position()
+
+        self.chart_image.draw_top_info()
+        self.chart_image.draw_chart(False)
+        self.chart_image.draw_chart(True)
+        self.chart_image.draw_bottom_info()
+
+        self.drawing = False
+
+        self.file_name = "assets/Chart Images/" + self.song.name.lower().replace(" ", "") + ".png"
+
+        self.chart_image.imss[0].write_to_png(self.file_name)
+
+        self.img = tk.PhotoImage(file=self.file_name)
+        self.canvas.create_image(0,0,image=self.img, anchor="nw")
+        self.canvas.config(scrollregion=(0, 0, self.chart_image.WIDTH, self.chart_image.first_page_height))
+
+        self.chart_menu.entryconfig(0, state="normal")
+        self.export_menu.entryconfig(1, state="normal")
+
+    def read_position(self):     
+        if self.drawing:
+            c_length = self.chart_image.c_length
+            chart_length = self.chart_image.chart_length
+            bar_length = c_length if c_length < chart_length else chart_length
+            self.progress_bar.config(value=bar_length)
+            self.after(100, self.read_position)
+        
+
 
 def main():
     app = Application()
