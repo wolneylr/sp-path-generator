@@ -28,7 +28,7 @@ matplotlib==2.2.2
 mccabe==0.6.1
 nbformat==4.4.0
 networkx==2.1
-numpy==1.14.5
+numpy==1.22.0
 parsel==1.5.0
 plotly==3.0.2
 pyasn1==0.4.3
